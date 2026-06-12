@@ -316,6 +316,7 @@
   color: var(--ink);
   line-height: 1.8;
   word-break: keep-all;
+  white-space: pre-line; /* 문장 단위 줄바꿈(\n) 유지 */
   position: relative;
 }
 
