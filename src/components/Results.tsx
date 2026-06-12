@@ -41,7 +41,7 @@ const LEVEL_INFO: Record<
   high: { text: '많이 힘들어요', emoji: '🌧️', color: 'var(--maroon)' },
 };
 
-const AUTO_RESET_SECONDS = 15; // 결과 확인 후 자동으로 첫 화면으로 돌아가는 시간
+const AUTO_RESET_SECONDS = 10; // 결과 확인 후 자동으로 첫 화면으로 돌아가는 시간
 
 export default function Results({ result, onReset }: ResultsProps) {
   // 마운트 후 게이지가 0에서 결과값까지 차오르도록
