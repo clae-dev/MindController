@@ -3,6 +3,7 @@ import type { AnalysisSummary } from '../types/index';
 import { EMOTION_NAMES } from '../services/emotionAnalysis';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
+import PlayfulEmojis from './PlayfulEmojis';
 import '../styles/Results.css';
 
 interface ResultsProps {
@@ -77,13 +78,21 @@ export default function Results({ result, onReset }: ResultsProps) {
 
   return (
     <div className="results-container">
+      <PlayfulEmojis />
       <div className="results-card">
         <header className="results-header">
           <span className="badge">
             <AnimatedEmoji emoji="🍃" size={16} label="나뭇잎" />
             마음 리포트
           </span>
-          <h1>오늘의 마음 결과예요</h1>
+          <h1>
+            오늘의 마음 결과예요
+            {result.stressLevel === 'low' && (
+              <span className="header-party" aria-hidden="true">
+                <AnimatedEmoji emoji="🥳" size={26} />
+              </span>
+            )}
+          </h1>
         </header>
 
         <div className="emotion-hero">

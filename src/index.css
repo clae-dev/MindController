@@ -49,6 +49,47 @@ button {
   width: 100%;
 }
 
+/* 떠다니는 놀이 이모지 장식 레이어 (양쪽 화면 공통) */
+.playful-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.playful-emoji {
+  position: absolute;
+  opacity: 0.8;
+  animation: drift 4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 10px rgba(46, 43, 38, 0.12));
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(5deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .playful-sm-hide {
+    display: none;
+  }
+
+  .playful-emoji {
+    opacity: 0.65;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playful-emoji {
+    animation: none;
+  }
+}
+
 /* 운영 기관 공동 브랜딩 푸터 (양쪽 화면 공통) */
 .brand-footer {
   margin-top: 28px;
@@ -71,6 +112,11 @@ button {
   background: #fff;
   border: 1px solid var(--line);
   box-shadow: 0 2px 8px rgba(46, 43, 38, 0.08);
+  transition: transform 0.25s ease;
+}
+
+.brand-logo:hover {
+  transform: scale(1.12);
 }
 
 .brand-cross {

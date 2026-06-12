@@ -5,6 +5,7 @@ import { emotionAnalysisService } from '../services/emotionAnalysis';
 import Results from './Results';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
+import PlayfulEmojis from './PlayfulEmojis';
 import '../styles/StressAnalyzer.css';
 
 const ANALYSIS_DURATION = 5; // 분석 시간 (초)
@@ -252,6 +253,7 @@ export default function StressAnalyzer() {
 
   return (
     <div className="stress-analyzer">
+      <PlayfulEmojis />
       <div className="container">
         <header className="page-header">
           <span className="badge">
@@ -269,7 +271,13 @@ export default function StressAnalyzer() {
         {status === 'idle' && (
           <div className="card idle-state">
             <div className="hero-emoji">
+              <span className="hero-accent hero-accent-left" aria-hidden="true">
+                <AnimatedEmoji emoji="🎈" size={26} />
+              </span>
               <AnimatedEmoji emoji="😌" size={80} label="평온한 얼굴" />
+              <span className="hero-accent hero-accent-right" aria-hidden="true">
+                <AnimatedEmoji emoji="✨" size={24} />
+              </span>
             </div>
             <ul className="steps">
               <li>
