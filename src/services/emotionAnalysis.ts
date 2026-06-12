@@ -80,6 +80,19 @@ export class EmotionAnalysisService {
     };
   }
 
+  // 표정만으로 스트레스 지수 계산 (음성/텍스트 없이)
+  calculateStressFromFace(emotionScores: Record<string, number>): number {
+    const negative =
+      (emotionScores.sad || 0) +
+      (emotionScores.angry || 0) +
+      (emotionScores.disgusted || 0);
+    const surprised = (emotionScores.surprised || 0) * 0.3;
+    const positive = (emotionScores.happy || 0) * 0.5;
+
+    const stress = negative + surprised - positive;
+    return Math.min(Math.max(stress, 0), 100);
+  }
+
   calculateStressFromAnalysis(
     emotionScores: Record<string, number>,
     voiceTone: Record<string, number>,

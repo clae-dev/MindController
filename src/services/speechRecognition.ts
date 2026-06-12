@@ -12,6 +12,7 @@ export class SpeechRecognitionService {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private mediaStream: MediaStream | null = null;
+  private ownsStream = false;
   private transcript = '';
   private isListening = false;
 
@@ -36,17 +37,25 @@ export class SpeechRecognitionService {
   }
 
   async startListening(
-    onResultCallback?: (transcript: string) => void
+    onResultCallback?: (transcript: string) => void,
+    stream?: MediaStream
   ): Promise<void> {
     try {
-      // 마이크 접근 요청
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      if (stream) {
+        // 외부에서 받은 스트림 재사용 (권한 프롬프트 중복 방지) — 소유권은 호출자에게
+        this.mediaStream = stream;
+        this.ownsStream = false;
+      } else {
+        // 마이크 접근 요청
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        this.ownsStream = true;
+      }
 
       // Audio Context 설정
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -148,10 +157,10 @@ export class SpeechRecognitionService {
   }
 
   destroy(): void {
-    if (this.mediaStream) {
+    if (this.mediaStream && this.ownsStream) {
       this.mediaStream.getTracks().forEach(track => track.stop());
     }
-    if (this.audioContext) {
+    if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();
     }
     if (this.recognition) {

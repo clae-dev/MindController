@@ -14,7 +14,7 @@ export interface VoiceTone {
   stressLevel: number;
 }
 
-export type AnalysisStatus = 'idle' | 'analyzing' | 'completed' | 'error';
+export type AnalysisStatus = 'idle' | 'detecting' | 'analyzing' | 'completed' | 'error';
 
 export interface AnalysisSummary {
   primaryEmotion: string;
