@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.35",
-    "axios": "^1.17.0",
+    "lottie-web": "^5.13.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },

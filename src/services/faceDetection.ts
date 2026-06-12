@@ -86,8 +86,13 @@ export class FaceDetectionService {
       throw new Error('Cannot get canvas context');
     }
 
-    this.canvas.width = this.videoElement.videoWidth;
-    this.canvas.height = this.videoElement.videoHeight;
+    // 크기 변경 시에만 버퍼 재할당 (매 프레임 재할당은 비용이 큼)
+    if (this.canvas.width !== this.videoElement.videoWidth) {
+      this.canvas.width = this.videoElement.videoWidth;
+    }
+    if (this.canvas.height !== this.videoElement.videoHeight) {
+      this.canvas.height = this.videoElement.videoHeight;
+    }
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     try {
@@ -119,13 +124,14 @@ export class FaceDetectionService {
   }
 
   private drawLandmarks(ctx: CanvasRenderingContext2D, landmarks: Point[]): void {
-    // 점 그리기
+    // 점 그리기 — 478개를 한 패스로 모아 한 번에 fill (개별 fill 대비 그리기 비용 감소)
     ctx.fillStyle = '#00FF00';
+    ctx.beginPath();
     for (const landmark of landmarks) {
-      ctx.beginPath();
+      ctx.moveTo(landmark.x + 2, landmark.y);
       ctx.arc(landmark.x, landmark.y, 2, 0, 2 * Math.PI);
-      ctx.fill();
     }
+    ctx.fill();
 
     // 주요 얼굴 특징 연결 (Face Mesh)
     const connections = [
@@ -142,19 +148,19 @@ export class FaceDetectionService {
       [84, 181], [181, 91], [91, 106],
     ];
 
-    // 선 그리기
+    // 선 그리기 — 한 패스로 모아 한 번에 stroke
     ctx.strokeStyle = '#00FF00';
     ctx.lineWidth = 1;
+    ctx.beginPath();
     for (const connection of connections) {
       const start = landmarks[connection[0]];
       const end = landmarks[connection[1]];
       if (start && end) {
-        ctx.beginPath();
         ctx.moveTo(start.x, start.y);
         ctx.lineTo(end.x, end.y);
-        ctx.stroke();
       }
     }
+    ctx.stroke();
   }
 
   // ARKit 스타일 블렌드셰이프(0~1) 조합으로 7종 감정 점수(0~100) 산출
