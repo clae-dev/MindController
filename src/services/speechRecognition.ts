@@ -14,7 +14,6 @@ export class SpeechRecognitionService {
   private mediaStream: MediaStream | null = null;
   private ownsStream = false;
   private transcript = '';
-  private isListening = false;
 
   constructor() {
     try {
@@ -65,7 +64,6 @@ export class SpeechRecognitionService {
       source.connect(this.analyser);
 
       this.transcript = '';
-      this.isListening = true;
 
       if (this.recognition) {
         this.recognition.onresult = (event: any) => {
@@ -105,7 +103,6 @@ export class SpeechRecognitionService {
         console.warn('Error stopping recognition:', error);
       }
     }
-    this.isListening = false;
     return this.transcript;
   }
 
