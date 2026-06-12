@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AnalysisSummary } from '../types/index';
+import { EMOTION_NAMES } from '../services/emotionAnalysis';
 import AnimatedEmoji from './AnimatedEmoji';
 import '../styles/Results.css';
 
@@ -15,7 +16,18 @@ const EMOTION_EMOJIS: Record<string, string> = {
   surprised: '😲',
   neutral: '😌',
   disgusted: '🤢',
-  afraid: '😨',
+  fearful: '😨',
+};
+
+// 감정 분포 바 색상 (차분한 톤)
+const EMOTION_COLORS: Record<string, string> = {
+  happy: 'var(--sage)',
+  sad: '#7b8aa6',
+  angry: 'var(--maroon)',
+  surprised: 'var(--mustard)',
+  neutral: 'var(--ink-faint)',
+  disgusted: '#8a9a5b',
+  fearful: '#9a86b5',
 };
 
 const LEVEL_INFO: Record<
@@ -55,6 +67,13 @@ export default function Results({ result, onReset }: ResultsProps) {
   const level = LEVEL_INFO[result.stressLevel];
   const emoji = EMOTION_EMOJIS[result.primaryEmotion] || '😌';
 
+  // 감정 분포: 상위 3개 (1% 미만 제외)
+  const spectrum = (Object.entries(result.emotionScores) as [string, number][])
+    .map(([key, value]) => ({ key, value: Math.round(value) }))
+    .filter((e) => e.value >= 1)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3);
+
   return (
     <div className="results-container">
       <div className="results-card">
@@ -71,8 +90,32 @@ export default function Results({ result, onReset }: ResultsProps) {
             <AnimatedEmoji emoji={emoji} size={64} label={result.keyword} />
           </div>
           <p className="emotion-name">{result.keyword}</p>
-          <p className="emotion-caption">이 표정이 가장 많이 보였어요</p>
+          <p className="emotion-caption">{result.emotionDetail}</p>
         </div>
+
+        {spectrum.length > 0 && (
+          <div className="spectrum-section">
+            <p className="spectrum-title">감정 분포</p>
+            {spectrum.map((e) => (
+              <div className="spectrum-row" key={e.key}>
+                <span className="spectrum-label">
+                  <AnimatedEmoji emoji={EMOTION_EMOJIS[e.key] || '😌'} size={16} />
+                  {EMOTION_NAMES[e.key] || e.key}
+                </span>
+                <div className="spectrum-track">
+                  <div
+                    className="spectrum-fill"
+                    style={{
+                      width: `${e.value}%`,
+                      background: EMOTION_COLORS[e.key] || 'var(--ink-faint)',
+                    }}
+                  />
+                </div>
+                <span className="spectrum-value">{e.value}%</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="score-section">
           <div className="score-row">
