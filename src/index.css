@@ -109,6 +109,75 @@ button {
   overflow: hidden;
 }
 
+/* 축제 가랜드: 상단에 늘어진 삼각 깃발 줄 */
+.bunting {
+  position: absolute;
+  top: 0;
+  left: -2%;
+  right: -2%;
+  display: flex;
+  justify-content: space-between;
+  border-top: 3px solid rgba(255, 255, 255, 0.85);
+  transform-origin: top center;
+  animation: bunting-sway 6s ease-in-out infinite alternate;
+}
+
+.pennant {
+  width: 0;
+  height: 0;
+  border-left: 13px solid transparent;
+  border-right: 13px solid transparent;
+  border-top-width: 22px;
+  border-top-style: solid;
+  filter: drop-shadow(0 2px 2px rgba(46, 43, 38, 0.12));
+}
+
+/* 깃발이 줄에서 살짝씩 다른 각도로 매달린 느낌 */
+.pennant:nth-child(odd) {
+  transform: rotate(3deg);
+}
+
+.pennant:nth-child(even) {
+  transform: rotate(-3deg);
+}
+
+.pennant-0 {
+  border-top-color: #f0907a; /* 코랄 */
+}
+
+.pennant-1 {
+  border-top-color: #f2c14e; /* 머스터드 */
+}
+
+.pennant-2 {
+  border-top-color: #8fc9a8; /* 세이지 */
+}
+
+.pennant-3 {
+  border-top-color: #8ec5e6; /* 하늘 */
+}
+
+@keyframes bunting-sway {
+  from {
+    transform: rotate(-0.6deg);
+  }
+  to {
+    transform: rotate(0.6deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .pennant:nth-child(n + 9) {
+    display: none; /* 좁은 화면은 깃발 8개만 */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bunting {
+    animation: none;
+  }
+}
+
 .playful-emoji {
   position: absolute;
   opacity: 0.8;
