@@ -276,38 +276,68 @@
 /* 오늘의 한마디 (명언) */
 .quote-card {
   position: relative;
-  padding: 26px 24px 20px;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 250, 240, 0.95),
+    rgba(240, 247, 238, 0.95)
+  );
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  padding: 26px 28px 22px;
   margin-bottom: 28px;
-  border-top: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
+  overflow: hidden;
 }
 
+/* 배경 장식용 큰 따옴표 */
 .quote-mark {
   position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: -6px;
+  left: 14px;
   font-family: var(--serif);
-  font-size: 2.2em;
+  font-size: 5em;
   line-height: 1;
-  color: var(--line);
+  color: var(--sage);
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.quote-label {
+  color: var(--sage);
+  font-size: 0.76em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  margin-bottom: 12px;
 }
 
 .quote-card blockquote {
   font-family: var(--serif);
-  font-size: 1.04em;
-  font-weight: 500;
+  font-size: 1.12em;
+  font-weight: 600;
   color: var(--ink);
-  line-height: 1.75;
-  margin-top: 10px;
+  line-height: 1.8;
   word-break: keep-all;
+  position: relative;
 }
 
+/* 출처: 양옆에 짧은 선 */
 .quote-card figcaption {
-  margin-top: 10px;
-  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--ink-soft);
   font-size: 0.86em;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.quote-card figcaption::before,
+.quote-card figcaption::after {
+  content: '';
+  width: 26px;
+  height: 1px;
+  background: var(--line);
 }
 
 /* 버튼 */
