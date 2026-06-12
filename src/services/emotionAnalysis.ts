@@ -1,5 +1,55 @@
 import type { EmotionScores, Quote } from '../types/index';
 
+// 감정 키 → 한국어 이름 (감정 분포 차트 등에서 사용)
+export const EMOTION_NAMES: Record<string, string> = {
+  happy: '행복',
+  sad: '슬픔',
+  angry: '분노',
+  surprised: '놀람',
+  neutral: '평온',
+  disgusted: '불쾌',
+  fearful: '불안',
+};
+
+// 감정별 표정 묘사 — [강함(60+), 보통(30+), 옅음] 3단계
+const EXPRESSION_LABELS: Record<string, [string, string, string]> = {
+  happy: [
+    '환한 미소가 가득한 얼굴',
+    '잔잔한 미소가 머무는 얼굴',
+    '옅은 미소가 스치는 얼굴',
+  ],
+  sad: [
+    '슬픔이 짙게 배어 있는 표정',
+    '어딘가 가라앉은 표정',
+    '옅은 그늘이 스치는 표정',
+  ],
+  angry: [
+    '단단히 굳은 표정',
+    '미간에 힘이 들어간 표정',
+    '살짝 긴장된 미간',
+  ],
+  surprised: [
+    '눈이 동그래진 놀란 표정',
+    '살짝 놀란 듯한 표정',
+    '호기심이 어린 표정',
+  ],
+  disgusted: [
+    '잔뜩 찌푸린 표정',
+    '살짝 찌푸린 표정',
+    '미묘하게 일그러진 표정',
+  ],
+  fearful: [
+    '불안이 가득한 표정',
+    '긴장이 어린 표정',
+    '옅은 긴장이 스치는 표정',
+  ],
+  neutral: [
+    '고요하고 평온한 얼굴',
+    '차분히 가라앉은 얼굴',
+    '잔잔한 얼굴',
+  ],
+};
+
 // 스트레스 수준별 응원 문구 · 명언
 const QUOTES: Record<'low' | 'medium' | 'high', Quote[]> = {
   low: [
@@ -96,12 +146,35 @@ export class EmotionAnalysisService {
     const negative =
       (emotionScores.sad || 0) +
       (emotionScores.angry || 0) +
-      (emotionScores.disgusted || 0);
+      (emotionScores.disgusted || 0) +
+      (emotionScores.fearful || 0) * 0.8;
     const surprised = (emotionScores.surprised || 0) * 0.3;
     const positive = (emotionScores.happy || 0) * 0.5;
 
     const stress = negative + surprised - positive;
     return Math.min(Math.max(stress, 0), 100);
+  }
+
+  // 주요 감정의 강도와 보조 감정을 반영한 표정 묘사
+  describeEmotion(
+    scores: EmotionScores,
+    primaryEmotion: string
+  ): { label: string; detail: string } {
+    const score = scores[primaryEmotion as keyof EmotionScores] ?? 0;
+    const labels = EXPRESSION_LABELS[primaryEmotion] ?? EXPRESSION_LABELS.neutral;
+    const label = score >= 60 ? labels[0] : score >= 30 ? labels[1] : labels[2];
+
+    // 두 번째로 강한 감정 (평온 제외)이 충분히 보이면 함께 언급
+    const secondary = (Object.entries(scores) as [string, number][])
+      .filter(([key]) => key !== primaryEmotion && key !== 'neutral')
+      .sort((a, b) => b[1] - a[1])[0];
+
+    const detail =
+      secondary && secondary[1] >= 15
+        ? `${EMOTION_NAMES[secondary[0]]}의 기색도 살짝 함께 보였어요`
+        : '5초 동안 가장 또렷하게 읽힌 표정이에요';
+
+    return { label, detail };
   }
 
   calculateStressFromAnalysis(
@@ -120,7 +193,7 @@ export class EmotionAnalysisService {
   }
 
   private getEmotionStress(scores: Record<string, number>): number {
-    const stressEmotions = ['sad', 'angry', 'afraid', 'disgusted'];
+    const stressEmotions = ['sad', 'angry', 'fearful', 'disgusted'];
     let totalStress = 0;
 
     for (const emotion of stressEmotions) {

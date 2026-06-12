@@ -103,6 +103,64 @@
   font-size: 0.88em;
 }
 
+/* 감정 분포 */
+.spectrum-section {
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  background: rgba(246, 243, 236, 0.5);
+}
+
+.spectrum-title {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.96em;
+  text-align: left;
+  margin-bottom: 14px;
+}
+
+.spectrum-row {
+  display: grid;
+  grid-template-columns: 84px 1fr 42px;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.spectrum-row:last-child {
+  margin-bottom: 0;
+}
+
+.spectrum-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 0.88em;
+  font-weight: 600;
+}
+
+.spectrum-track {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.spectrum-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.spectrum-value {
+  color: var(--ink-faint);
+  font-size: 0.85em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* 스트레스 지수 */
 .score-section {
   border: 1px solid var(--line-soft);

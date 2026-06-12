@@ -47,6 +47,7 @@ export class FaceDetectionService {
       },
       runningMode: 'VIDEO',
       numFaces: 1,
+      outputFaceBlendshapes: true, // 표정 근육 수치(미소, 찌푸림 등 52종) — 감정 계산에 사용
     });
   }
 
@@ -104,6 +105,12 @@ export class FaceDetectionService {
       }));
 
       this.drawLandmarks(ctx, points);
+
+      // 블렌드셰이프(표정 근육 수치) 기반 계산 — 랜드마크 거리 추정보다 훨씬 정확
+      const blendshapes = result.faceBlendshapes?.[0]?.categories;
+      if (blendshapes && blendshapes.length > 0) {
+        return this.calculateEmotionFromBlendshapes(blendshapes);
+      }
       return this.calculateEmotionFromLandmarks(points);
     } catch (error) {
       console.error('Face detection error:', error);
@@ -150,6 +157,52 @@ export class FaceDetectionService {
     }
   }
 
+  // ARKit 스타일 블렌드셰이프(0~1) 조합으로 7종 감정 점수(0~100) 산출
+  private calculateEmotionFromBlendshapes(
+    categories: Array<{ categoryName: string; score: number }>
+  ): EmotionScores {
+    const shape = new Map<string, number>();
+    for (const c of categories) shape.set(c.categoryName, c.score);
+    const s = (name: string) => shape.get(name) ?? 0;
+    const pair = (base: string) => (s(`${base}Left`) + s(`${base}Right`)) / 2;
+    const clamp = (v: number) => Math.min(100, Math.max(0, v));
+
+    const smile = pair('mouthSmile');
+    const cheekSquint = pair('cheekSquint');
+    const frown = pair('mouthFrown');
+    const browInnerUp = s('browInnerUp');
+    const browDown = pair('browDown');
+    const eyeSquint = pair('eyeSquint');
+    const mouthPress = pair('mouthPress');
+    const eyeWide = pair('eyeWide');
+    const browOuterUp = pair('browOuterUp');
+    const jawOpen = s('jawOpen');
+    const noseSneer = pair('noseSneer');
+    const upperLipRaise = pair('mouthUpperUp');
+    const mouthStretch = pair('mouthStretch');
+
+    const happy = clamp((smile * 1.2 + cheekSquint * 0.4) * 100);
+    const sad = clamp((frown * 0.9 + browInnerUp * 0.5) * 100);
+    const angry = clamp((browDown * 1.0 + eyeSquint * 0.4 + mouthPress * 0.5) * 100);
+    const surprised = clamp((eyeWide * 0.7 + browOuterUp * 0.6 + jawOpen * 0.5) * 100);
+    const disgusted = clamp((noseSneer * 1.2 + upperLipRaise * 0.6) * 100);
+    const fearful = clamp((eyeWide * 0.4 + browInnerUp * 0.4 + mouthStretch * 0.7) * 100);
+
+    const scores: EmotionScores = {
+      happy,
+      sad,
+      angry,
+      surprised,
+      neutral: 0,
+      disgusted,
+      fearful,
+    };
+    const total = happy + sad + angry + surprised + disgusted + fearful;
+    scores.neutral = clamp(100 - total);
+    return scores;
+  }
+
+  // 블렌드셰이프가 없을 때의 폴백: 랜드마크 거리 기반 단순 추정
   private calculateEmotionFromLandmarks(landmarks: Point[]): EmotionScores {
     // 주요 랜드마크 인덱스
     const leftEye = landmarks[33]; // 왼쪽 눈 바깥쪽
@@ -167,6 +220,7 @@ export class FaceDetectionService {
         surprised: 0,
         neutral: 100,
         disgusted: 0,
+        fearful: 0,
       };
     }
 
@@ -190,6 +244,7 @@ export class FaceDetectionService {
       surprised,
       neutral: 0,
       disgusted,
+      fearful: 0,
     };
 
     // 합계가 0이면 중립으로 설정

@@ -9,15 +9,6 @@ import '../styles/StressAnalyzer.css';
 const ANALYSIS_DURATION = 5; // 분석 시간 (초)
 const DETECTION_INTERVAL = 100; // 얼굴 감지 주기 (ms)
 
-const EMOTION_LABELS: Record<string, string> = {
-  happy: '행복한 표정',
-  sad: '슬픈 표정',
-  angry: '화난 표정',
-  surprised: '놀란 표정',
-  neutral: '평온한 표정',
-  disgusted: '불쾌한 표정',
-};
-
 // 모델 로드 실패는 WASM/모델 파일 다운로드 실패 — 개발 중에는 대부분 dev 서버가 꺼진 경우
 const modelLoadErrorMessage = (): string =>
   import.meta.env.DEV
@@ -127,6 +118,7 @@ export default function StressAnalyzer() {
             surprised: 0,
             neutral: 0,
             disgusted: 0,
+            fearful: 0,
           };
 
           if (emotionScoresCollected.length > 0) {
@@ -150,6 +142,12 @@ export default function StressAnalyzer() {
             primaryEmotion
           );
 
+          // 표정 묘사 (강도 + 보조 감정 반영)
+          const { label, detail } = emotionAnalysisService.describeEmotion(
+            averageEmotionScores,
+            primaryEmotion
+          );
+
           // 결과 저장
           const stressLevel =
             stressIndex < 33 ? 'low' : stressIndex < 66 ? 'medium' : 'high';
@@ -157,7 +155,9 @@ export default function StressAnalyzer() {
             primaryEmotion,
             stressLevel,
             stressIndex: Math.round(stressIndex),
-            keyword: EMOTION_LABELS[primaryEmotion] || primaryEmotion,
+            keyword: label,
+            emotionDetail: detail,
+            emotionScores: averageEmotionScores,
             recommendation,
             quote: emotionAnalysisService.getQuote(stressLevel),
             analyzedTime: ANALYSIS_DURATION,
