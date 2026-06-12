@@ -155,8 +155,9 @@ export default function Results({ result, onReset }: ResultsProps) {
           <span className="quote-mark" aria-hidden="true">
             “
           </span>
+          <p className="quote-label">오늘의 한마디</p>
           <blockquote>{result.quote.text}</blockquote>
-          <figcaption>— {result.quote.author}</figcaption>
+          <figcaption>{result.quote.author}</figcaption>
         </figure>
 
         <button className="reset-button" onClick={onReset}>
