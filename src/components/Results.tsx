@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AnalysisSummary } from '../types/index';
 import { EMOTION_NAMES } from '../services/emotionAnalysis';
 import AnimatedEmoji from './AnimatedEmoji';
+import BrandFooter from './BrandFooter';
 import '../styles/Results.css';
 
 interface ResultsProps {
@@ -158,6 +159,7 @@ export default function Results({ result, onReset }: ResultsProps) {
           {secondsLeft}초 후 처음으로 돌아가요
         </p>
       </div>
+      <BrandFooter />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { faceDetectionService } from '../services/faceDetection';
 import { emotionAnalysisService } from '../services/emotionAnalysis';
 import Results from './Results';
 import AnimatedEmoji from './AnimatedEmoji';
+import BrandFooter from './BrandFooter';
 import '../styles/StressAnalyzer.css';
 
 const ANALYSIS_DURATION = 5; // 분석 시간 (초)
@@ -353,6 +354,8 @@ export default function StressAnalyzer() {
             </button>
           </div>
         )}
+
+        <BrandFooter />
       </div>
     </div>
   );
