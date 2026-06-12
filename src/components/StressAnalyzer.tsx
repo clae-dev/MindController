@@ -3,6 +3,7 @@ import type { AnalysisStatus, AnalysisSummary, EmotionScores } from '../types/in
 import { faceDetectionService } from '../services/faceDetection';
 import { emotionAnalysisService } from '../services/emotionAnalysis';
 import Results from './Results';
+import AnimatedEmoji from './AnimatedEmoji';
 import '../styles/StressAnalyzer.css';
 
 const ANALYSIS_DURATION = 5; // 분석 시간 (초)
@@ -17,11 +18,32 @@ const EMOTION_LABELS: Record<string, string> = {
   disgusted: '불쾌한 표정',
 };
 
+// 모델 로드 실패는 WASM/모델 파일 다운로드 실패 — 개발 중에는 대부분 dev 서버가 꺼진 경우
+const modelLoadErrorMessage = (): string =>
+  import.meta.env.DEV
+    ? '분석 모델을 불러오지 못했습니다. 개발 서버가 실행 중인지 확인한 뒤 페이지를 새로고침해주세요.'
+    : '분석 모델을 불러오지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
+
+const startErrorMessage = (err: unknown): string => {
+  if (err instanceof DOMException) {
+    switch (err.name) {
+      case 'NotAllowedError':
+        return '웹캠 접근이 차단되었습니다. 브라우저의 카메라 권한을 허용해주세요.';
+      case 'NotFoundError':
+        return '사용 가능한 웹캠을 찾을 수 없습니다. 카메라 연결을 확인해주세요.';
+      case 'NotReadableError':
+        return '웹캠을 사용할 수 없습니다. 다른 프로그램이 카메라를 사용 중인지 확인해주세요.';
+    }
+  }
+  // 웹캠 단계가 아니면 모델 로드(WASM/모델 파일 다운로드) 단계의 실패
+  return modelLoadErrorMessage();
+};
+
 export default function StressAnalyzer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const detectLoopRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const detectLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runningRef = useRef(false);
   const [status, setStatus] = useState<AnalysisStatus>('idle');
   const [modelReady, setModelReady] = useState(false);
@@ -40,7 +62,7 @@ export default function StressAnalyzer() {
       .catch((err) => {
         console.error('Model preload error:', err);
         if (!cancelled) {
-          setError('분석 모델을 불러오지 못했습니다. 네트워크 연결을 확인해주세요.');
+          setError(modelLoadErrorMessage());
           setStatus('error');
         }
       });
@@ -64,9 +86,9 @@ export default function StressAnalyzer() {
       setStatus('detecting');
       setTimeRemaining(ANALYSIS_DURATION);
 
-      // 1. 웹캠 접근 (카메라만 사용)
+      // 1. 웹캠 접근 (카메라만 사용) — 크게 표시되므로 높은 해상도를 우선 요청
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { width: { ideal: 1280 }, height: { ideal: 960 } },
       });
 
       if (videoRef.current) {
@@ -129,13 +151,15 @@ export default function StressAnalyzer() {
           );
 
           // 결과 저장
+          const stressLevel =
+            stressIndex < 33 ? 'low' : stressIndex < 66 ? 'medium' : 'high';
           const summary: AnalysisSummary = {
             primaryEmotion,
-            stressLevel:
-              stressIndex < 33 ? 'low' : stressIndex < 66 ? 'medium' : 'high',
+            stressLevel,
             stressIndex: Math.round(stressIndex),
             keyword: EMOTION_LABELS[primaryEmotion] || primaryEmotion,
             recommendation,
+            quote: emotionAnalysisService.getQuote(stressLevel),
             analyzedTime: ANALYSIS_DURATION,
           };
 
@@ -185,7 +209,7 @@ export default function StressAnalyzer() {
       detectLoop();
     } catch (err) {
       console.error('Start analysis error:', err);
-      setError('분석을 시작할 수 없습니다. 웹캠과 마이크 접근 권한을 확인해주세요.');
+      setError(startErrorMessage(err));
       setStatus('error');
     }
   };
@@ -215,7 +239,7 @@ export default function StressAnalyzer() {
         .then(() => setModelReady(true))
         .catch((err) => {
           console.error('Model preload error:', err);
-          setError('분석 모델을 불러오지 못했습니다. 네트워크 연결을 확인해주세요.');
+          setError(modelLoadErrorMessage());
           setStatus('error');
         });
     }
@@ -228,37 +252,65 @@ export default function StressAnalyzer() {
   return (
     <div className="stress-analyzer">
       <div className="container">
-        <h1>🧠 마음건강 스트레스 분석</h1>
-        <p className="subtitle">
-          {ANALYSIS_DURATION}초간의 자동 분석으로 당신의 스트레스 지수를 알아보세요
-        </p>
+        <header className="page-header">
+          <span className="badge">
+            <AnimatedEmoji emoji="🌈" size={18} label="오늘의 날씨" />
+            오늘의 마음 날씨
+          </span>
+          <h1>마음, 잠깐 들여다볼까요?</h1>
+          <p className="subtitle">
+            카메라 앞에서 {ANALYSIS_DURATION}초면 충분해요.
+            <br />
+            표정으로 지금의 스트레스를 읽어드릴게요.
+          </p>
+        </header>
 
         {status === 'idle' && (
-          <div className="idle-state">
-            <div className="instruction">
-              <p>📹 웹캠으로 표정을 분석합니다</p>
-              <p>⏱️ 얼굴이 인식되면 바로 {ANALYSIS_DURATION}초 동안 분석합니다</p>
+          <div className="card idle-state">
+            <div className="hero-emoji">
+              <AnimatedEmoji emoji="😌" size={80} label="평온한 얼굴" />
             </div>
+            <ul className="steps">
+              <li>
+                <span className="step-icon">
+                  <AnimatedEmoji emoji="📸" size={22} />
+                </span>
+                카메라를 편안하게 바라봐 주세요
+              </li>
+              <li>
+                <span className="step-icon">
+                  <AnimatedEmoji emoji="⏳" size={22} />
+                </span>
+                얼굴이 보이면 {ANALYSIS_DURATION}초 동안 자동으로 분석해요
+              </li>
+              <li>
+                <span className="step-icon">
+                  <AnimatedEmoji emoji="🔒" size={22} />
+                </span>
+                영상은 저장되지 않고, 기기 안에서만 처리돼요
+              </li>
+            </ul>
             {error && <div className="error-message">{error}</div>}
             <button
               className="start-button"
               onClick={startAnalysis}
               disabled={!modelReady}
             >
-              {modelReady ? '분석 시작' : '모델 준비 중...'}
+              {modelReady ? (
+                <>
+                  마음 들여다보기 <AnimatedEmoji emoji="✨" size={20} />
+                </>
+              ) : (
+                '준비하고 있어요…'
+              )}
             </button>
+            <p className="hint">버튼을 누르면 카메라 사용 권한을 요청해요</p>
           </div>
         )}
 
         {(status === 'detecting' || status === 'analyzing') && (
-          <div className="analyzing-state">
-            <div
-              style={{
-                position: 'relative',
-                display: 'inline-block',
-                transform: 'scaleX(-1)', // 거울 모드: 비디오와 랜드마크 캔버스를 함께 반전
-              }}
-            >
+          <div className="card analyzing-state">
+            <div className="video-frame">
               <video
                 ref={videoRef}
                 className="video-feed"
@@ -266,41 +318,38 @@ export default function StressAnalyzer() {
                 playsInline
                 muted
               />
-              <canvas
-                ref={canvasRef}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                }}
-              />
+              <canvas ref={canvasRef} className="landmark-canvas" />
             </div>
             {status === 'detecting' ? (
-              <div className="analyzing-text">
-                얼굴을 인식하는 중입니다... 카메라를 바라봐주세요
+              <div className="status-line">
+                <AnimatedEmoji emoji="👀" size={24} label="두리번" />
+                얼굴을 찾고 있어요… 카메라를 바라봐 주세요
               </div>
             ) : (
               <>
-                <div className="timer">
-                  <div className="timer-display">{timeRemaining}</div>
-                  <p>초</p>
+                <div className="countdown">
+                  <span className="count-num">{timeRemaining}</span>초 남았어요
                 </div>
-                <div className="analyzing-text">분석 중입니다...</div>
+                <div className="status-line">
+                  표정을 읽는 중이에요
+                  <AnimatedEmoji emoji="🍃" size={22} label="나뭇잎" />
+                </div>
               </>
             )}
             <button className="stop-button" onClick={stopAnalysis}>
-              중지
+              그만할래요
             </button>
           </div>
         )}
 
         {status === 'error' && (
-          <div className="error-state">
+          <div className="card error-state">
+            <div className="hero-emoji">
+              <AnimatedEmoji emoji="🥲" size={72} label="머쓱한 얼굴" />
+            </div>
             <p className="error-message">{error}</p>
             <button className="start-button" onClick={resetAnalysis}>
-              다시 시도
+              다시 시도하기
             </button>
           </div>
         )}

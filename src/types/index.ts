@@ -16,12 +16,18 @@ export interface VoiceTone {
 
 export type AnalysisStatus = 'idle' | 'detecting' | 'analyzing' | 'completed' | 'error';
 
+export interface Quote {
+  text: string;
+  author: string;
+}
+
 export interface AnalysisSummary {
   primaryEmotion: string;
   stressLevel: 'low' | 'medium' | 'high';
   stressIndex: number;
   keyword: string;
   recommendation: string;
+  quote: Quote;
   analyzedTime: number;
 }
 

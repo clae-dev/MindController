@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import type { AnalysisSummary } from '../types/index';
+import AnimatedEmoji from './AnimatedEmoji';
 import '../styles/Results.css';
 
 interface ResultsProps {
@@ -6,112 +8,95 @@ interface ResultsProps {
   onReset: () => void;
 }
 
+const EMOTION_EMOJIS: Record<string, string> = {
+  happy: '😊',
+  sad: '😢',
+  angry: '😠',
+  surprised: '😲',
+  neutral: '😌',
+  disgusted: '🤢',
+  afraid: '😨',
+};
+
+const LEVEL_INFO: Record<
+  AnalysisSummary['stressLevel'],
+  { text: string; emoji: string; color: string }
+> = {
+  low: { text: '여유로워요', emoji: '🌱', color: 'var(--sage)' },
+  medium: { text: '조금 지쳐 있어요', emoji: '☁️', color: 'var(--mustard)' },
+  high: { text: '많이 힘들어요', emoji: '🌧️', color: 'var(--maroon)' },
+};
+
 export default function Results({ result, onReset }: ResultsProps) {
-  const getStressColor = (level: string) => {
-    switch (level) {
-      case 'low':
-        return '#4CAF50'; // 초록색
-      case 'medium':
-        return '#FF9800'; // 주황색
-      case 'high':
-        return '#F44336'; // 빨강색
-      default:
-        return '#999';
-    }
-  };
+  // 마운트 후 게이지가 0에서 결과값까지 차오르도록
+  const [gaugeValue, setGaugeValue] = useState(0);
 
-  const getEmotionEmoji = (emotion: string) => {
-    const emojis: Record<string, string> = {
-      happy: '😊',
-      sad: '😢',
-      angry: '😠',
-      surprised: '😲',
-      neutral: '😐',
-      disgusted: '🤢',
-      afraid: '😨',
-    };
-    return emojis[emotion] || '😐';
-  };
+  useEffect(() => {
+    const id = setTimeout(() => setGaugeValue(result.stressIndex), 80);
+    return () => clearTimeout(id);
+  }, [result.stressIndex]);
 
-  const getStressLevelText = (level: string) => {
-    switch (level) {
-      case 'low':
-        return '낮음';
-      case 'medium':
-        return '중간';
-      case 'high':
-        return '높음';
-      default:
-        return '알 수 없음';
-    }
-  };
+  const level = LEVEL_INFO[result.stressLevel];
+  const emoji = EMOTION_EMOJIS[result.primaryEmotion] || '😌';
 
   return (
     <div className="results-container">
       <div className="results-card">
-        <h1>📊 분석 결과</h1>
+        <header className="results-header">
+          <span className="badge">
+            <AnimatedEmoji emoji="🍃" size={16} label="나뭇잎" />
+            마음 리포트
+          </span>
+          <h1>오늘의 마음 결과예요</h1>
+        </header>
 
-        {/* 스트레스 지수 */}
-        <div className="stress-section">
-          <h2>스트레스 지수</h2>
-          <div className="stress-gauge">
-            <div
-              className="stress-meter"
-              style={{
-                background: `linear-gradient(to right, #4CAF50 0%, #FF9800 50%, #F44336 100%)`,
-                position: 'relative',
-              }}
-            >
-              <div
-                className="stress-pointer"
-                style={{
-                  left: `${result.stressIndex}%`,
-                  background: getStressColor(result.stressLevel),
-                }}
-              />
-            </div>
-            <div className="stress-value">
-              <span className="number">{result.stressIndex}</span>
-              <span className="label">/100</span>
-            </div>
+        <div className="emotion-hero">
+          <div className="emotion-circle">
+            <AnimatedEmoji emoji={emoji} size={64} label={result.keyword} />
           </div>
-          <p className="stress-level">
-            스트레스 수준: <strong>{getStressLevelText(result.stressLevel)}</strong>
-          </p>
+          <p className="emotion-name">{result.keyword}</p>
+          <p className="emotion-caption">이 표정이 가장 많이 보였어요</p>
         </div>
 
-        {/* 주요 감정 */}
-        <div className="emotion-section">
-          <h2>주요 감정</h2>
-          <div className="emotion-display">
-            <span className="emotion-emoji">{getEmotionEmoji(result.primaryEmotion)}</span>
-            <span className="emotion-text">{result.primaryEmotion}</span>
+        <div className="score-section">
+          <div className="score-row">
+            <span className="score-title">스트레스 지수</span>
+            <span className="level-chip" style={{ color: level.color }}>
+              <AnimatedEmoji emoji={level.emoji} size={18} />
+              {level.text}
+            </span>
+          </div>
+          <div className="gauge-track">
+            <div className="gauge-fill" style={{ width: `${gaugeValue}%` }} />
+          </div>
+          <div className="score-value">
+            <b style={{ color: level.color }}>{result.stressIndex}</b>
+            <span>/ 100</span>
           </div>
         </div>
 
-        {/* 감지된 키워드 */}
-        <div className="keyword-section">
-          <h2>감지된 키워드</h2>
-          <div className="keyword-badge">{result.keyword}</div>
+        <div className="advice-card">
+          <span className="advice-emoji">
+            <AnimatedEmoji emoji="💬" size={24} label="조언" />
+          </span>
+          <p>{result.recommendation}</p>
         </div>
 
-        {/* 권장사항 */}
-        <div className="recommendation-section">
-          <h2>💡 조언</h2>
-          <p className="recommendation-text">{result.recommendation}</p>
-        </div>
+        <figure className="quote-card">
+          <span className="quote-mark" aria-hidden="true">
+            “
+          </span>
+          <blockquote>{result.quote.text}</blockquote>
+          <figcaption>— {result.quote.author}</figcaption>
+        </figure>
 
-        {/* 버튼 */}
-        <div className="action-buttons">
-          <button className="reset-button" onClick={onReset}>
-            다시 분석하기
-          </button>
-        </div>
+        <button className="reset-button" onClick={onReset}>
+          한 번 더 해볼래요 <AnimatedEmoji emoji="💫" size={18} />
+        </button>
 
-        {/* 분석 정보 */}
-        <div className="analysis-info">
-          <small>분석 시간: {result.analyzedTime}초</small>
-        </div>
+        <p className="analysis-info">
+          표정 분석 {result.analyzedTime}초 · 영상은 저장되지 않았어요
+        </p>
       </div>
     </div>
   );
