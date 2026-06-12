@@ -6,6 +6,8 @@
   align-items: center;
   justify-content: center;
   padding: 56px 20px;
+  position: relative;
+  overflow: hidden;
 }
 
 .results-card {
@@ -20,6 +22,19 @@
     0 16px 40px -28px rgba(46, 43, 38, 0.25);
   animation: slideUp 0.5s ease-out;
   text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.brand-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.header-party {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 8px;
 }
 
 @keyframes slideUp {
