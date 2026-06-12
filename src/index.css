@@ -49,6 +49,58 @@ button {
   width: 100%;
 }
 
+/* 하늘 + 풀밭 장면 (양쪽 화면 공통 배경) */
+.sky-scene {
+  background: linear-gradient(180deg, #b9ddf3 0%, #d9edf9 48%, #edf7fc 72%);
+}
+
+/* 풀밭: 완만한 언덕 곡선 */
+.sky-scene::before {
+  content: '';
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  bottom: -40px;
+  height: 30%;
+  background: linear-gradient(180deg, #aad489 0%, #7cb95c 100%);
+  border-radius: 55% 45% 0 0 / 110px 90px 0 0;
+  pointer-events: none;
+}
+
+/* 구름: 흰 타원 + 그림자 복제로 두 덩이, 아주 천천히 흐름 */
+.sky-scene::after {
+  content: '';
+  position: absolute;
+  top: 7%;
+  left: 8%;
+  width: 150px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  box-shadow:
+    36px -18px 0 6px rgba(255, 255, 255, 0.8),
+    72px 6px 0 2px rgba(255, 255, 255, 0.75),
+    62vw 50px 0 -4px rgba(255, 255, 255, 0.75),
+    66vw 36px 0 6px rgba(255, 255, 255, 0.65);
+  animation: clouds-drift 36s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes clouds-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(7vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-scene::after {
+    animation: none;
+  }
+}
+
 /* 떠다니는 놀이 이모지 장식 레이어 (양쪽 화면 공통) */
 .playful-layer {
   position: absolute;
@@ -125,9 +177,13 @@ button {
 }
 
 .brand-caption {
+  display: inline-block;
   color: var(--ink-soft);
   font-size: 0.84em;
   letter-spacing: 0.01em;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 7px 18px;
+  border-radius: 999px;
 }
 
 .brand-caption strong {

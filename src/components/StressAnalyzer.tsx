@@ -252,7 +252,7 @@ export default function StressAnalyzer() {
   }
 
   return (
-    <div className="stress-analyzer">
+    <div className="stress-analyzer sky-scene">
       <PlayfulEmojis />
       <div className="container">
         <header className="page-header">

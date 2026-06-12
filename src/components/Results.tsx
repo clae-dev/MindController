@@ -77,7 +77,7 @@ export default function Results({ result, onReset }: ResultsProps) {
     .slice(0, 3);
 
   return (
-    <div className="results-container">
+    <div className="results-container sky-scene">
       <PlayfulEmojis />
       <div className="results-card">
         <header className="results-header">

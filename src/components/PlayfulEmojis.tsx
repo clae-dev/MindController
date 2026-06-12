@@ -10,15 +10,22 @@ interface PlayfulItem {
   hideOnMobile?: boolean;
 }
 
-// 화면 가장자리에 둥둥 떠다니는 놀이 이모지들 — 카드 영역을 피해 배치
+// 하늘에 나는 것들 + 풀밭에서 노는 것들 — 카드 영역(중앙)을 피해 배치
 const ITEMS: PlayfulItem[] = [
-  { emoji: '🛹', size: 36, style: { top: '9%', left: '12%' }, delay: '0s', duration: '4.2s' },
-  { emoji: '🎉', size: 32, style: { top: '12%', right: '14%' }, delay: '0.8s', duration: '3.6s' },
-  { emoji: '⚽', size: 30, style: { top: '42%', left: '7%' }, delay: '1.4s', duration: '4.8s', hideOnMobile: true },
-  { emoji: '🏀', size: 30, style: { top: '48%', right: '7%' }, delay: '0.4s', duration: '4s', hideOnMobile: true },
-  { emoji: '🪩', size: 34, style: { bottom: '14%', left: '13%' }, delay: '1s', duration: '4.5s', hideOnMobile: true },
-  { emoji: '🚀', size: 32, style: { bottom: '11%', right: '12%' }, delay: '1.8s', duration: '3.8s' },
-  { emoji: '🎸', size: 28, style: { bottom: '38%', right: '16%' }, delay: '2.4s', duration: '5s', hideOnMobile: true },
+  // 하늘
+  { emoji: '🌞', size: 46, style: { top: '6%', right: '7%' }, delay: '0s', duration: '5.5s' },
+  { emoji: '🪁', size: 38, style: { top: '9%', left: '9%' }, delay: '0.7s', duration: '4.4s' },
+  { emoji: '🐦', size: 28, style: { top: '22%', right: '18%' }, delay: '1.6s', duration: '4s', hideOnMobile: true },
+  { emoji: '🦋', size: 30, style: { top: '38%', left: '8%' }, delay: '0.3s', duration: '3.6s' },
+  { emoji: '🎈', size: 30, style: { top: '34%', right: '8%' }, delay: '2.2s', duration: '4.8s', hideOnMobile: true },
+  // 풀밭
+  { emoji: '⚽', size: 32, style: { bottom: '7%', left: '18%' }, delay: '0.5s', duration: '3s' },
+  { emoji: '🏀', size: 30, style: { bottom: '12%', right: '20%' }, delay: '1.2s', duration: '2.8s', hideOnMobile: true },
+  { emoji: '🛹', size: 36, style: { bottom: '14%', left: '7%' }, delay: '1.8s', duration: '3.4s', hideOnMobile: true },
+  { emoji: '🐇', size: 32, style: { bottom: '6%', right: '9%' }, delay: '0s', duration: '3.2s' },
+  { emoji: '🌼', size: 26, style: { bottom: '4%', left: '36%' }, delay: '0.9s', duration: '4.6s', hideOnMobile: true },
+  { emoji: '🌷', size: 26, style: { bottom: '5%', right: '33%' }, delay: '1.4s', duration: '4.2s', hideOnMobile: true },
+  { emoji: '🐝', size: 24, style: { bottom: '11%', left: '31%' }, delay: '2.6s', duration: '3s', hideOnMobile: true },
 ];
 
 export default function PlayfulEmojis() {
