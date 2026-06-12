@@ -27,14 +27,30 @@ const LEVEL_INFO: Record<
   high: { text: '많이 힘들어요', emoji: '🌧️', color: 'var(--maroon)' },
 };
 
+const AUTO_RESET_SECONDS = 15; // 결과 확인 후 자동으로 첫 화면으로 돌아가는 시간
+
 export default function Results({ result, onReset }: ResultsProps) {
   // 마운트 후 게이지가 0에서 결과값까지 차오르도록
   const [gaugeValue, setGaugeValue] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(AUTO_RESET_SECONDS);
 
   useEffect(() => {
     const id = setTimeout(() => setGaugeValue(result.stressIndex), 80);
     return () => clearTimeout(id);
   }, [result.stressIndex]);
+
+  // 자동 초기화 카운트다운
+  useEffect(() => {
+    const id = setInterval(
+      () => setSecondsLeft((s) => Math.max(0, s - 1)),
+      1000
+    );
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) onReset();
+  }, [secondsLeft, onReset]);
 
   const level = LEVEL_INFO[result.stressLevel];
   const emoji = EMOTION_EMOJIS[result.primaryEmotion] || '😌';
@@ -95,7 +111,8 @@ export default function Results({ result, onReset }: ResultsProps) {
         </button>
 
         <p className="analysis-info">
-          표정 분석 {result.analyzedTime}초 · 영상은 저장되지 않았어요
+          표정 분석 {result.analyzedTime}초 · 영상은 저장되지 않았어요 ·{' '}
+          {secondsLeft}초 후 처음으로 돌아가요
         </p>
       </div>
     </div>
