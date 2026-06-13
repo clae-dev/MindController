@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { AnalysisStatus, AnalysisSummary, EmotionScores } from '../types/index';
 import { faceDetectionService } from '../services/faceDetection';
 import { emotionAnalysisService } from '../services/emotionAnalysis';
+import { populationCalibration } from '../services/populationCalibration';
 import Results from './Results';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
@@ -131,9 +132,13 @@ export default function StressAnalyzer() {
           }
 
           // 표정만으로 스트레스 지수 계산
-          const stressIndex = emotionAnalysisService.calculateStressFromFace(
+          const rawStressIndex = emotionAnalysisService.calculateStressFromFace(
             averageEmotionScores
           );
+
+          // 분포 기반 자동 보정: 원점수로 통계를 쌓고, 누적 분포에 비추어 보정
+          populationCalibration.record(averageEmotionScores, rawStressIndex);
+          const stressIndex = populationCalibration.calibrateStress(rawStressIndex);
 
           // 주요 감정 결정
           const primaryEmotion = faceDetectionService.getPrimaryEmotion(averageEmotionScores);
@@ -163,6 +168,7 @@ export default function StressAnalyzer() {
             recommendation,
             quote: emotionAnalysisService.getQuote(stressLevel),
             analyzedTime: ANALYSIS_DURATION,
+            calibrationCount: populationCalibration.getCount(),
           };
 
           setResult(summary);
