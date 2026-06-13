@@ -166,7 +166,7 @@ export default function StressAnalyzer() {
             emotionDetail: detail,
             emotionScores: averageEmotionScores,
             recommendation,
-            quote: emotionAnalysisService.getQuote(stressLevel),
+            quote: emotionAnalysisService.getQuote(stressLevel, primaryEmotion),
             analyzedTime: ANALYSIS_DURATION,
             calibrationCount: populationCalibration.getCount(),
           };

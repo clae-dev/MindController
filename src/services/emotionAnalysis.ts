@@ -11,6 +11,75 @@ export const EMOTION_NAMES: Record<string, string> = {
   fearful: '불안',
 };
 
+// 주요 감정별 한마디 — 스트레스 수준 풀과 합쳐져 후보로 사용됨
+const EMOTION_QUOTES: Record<string, Quote[]> = {
+  happy: [
+    {
+      text: '행복은 향수와 같아서,\n남에게 뿌리면 자신에게도 묻는다.',
+      author: '에머슨',
+    },
+    { text: '기쁨은 나누면 배가 된다.', author: '한국 속담' },
+    {
+      text: '오늘의 이 웃음,\n내일의 나에게도 빌려주세요.',
+      author: '오늘의 마음',
+    },
+  ],
+  sad: [
+    { text: '비 온 뒤에 땅이 굳어진다.', author: '한국 속담' },
+    { text: '슬픔은 나누면 절반이 된다.', author: '한국 속담' },
+    {
+      text: '눈물은 마음이 하는 청소예요.\n울어도 괜찮아요.',
+      author: '오늘의 마음',
+    },
+  ],
+  angry: [
+    {
+      text: '화가 날 때는 열을 세라.\n그래도 화가 나면 백을 세라.',
+      author: '토머스 제퍼슨',
+    },
+    {
+      text: '분노는 바람과 같아요.\n지나가게 두면 고요가 와요.',
+      author: '오늘의 마음',
+    },
+  ],
+  surprised: [
+    { text: '경이로움은 지혜의 시작이다.', author: '소크라테스' },
+    {
+      text: '예상 밖의 일들이\n인생을 재미있게 만들어요.',
+      author: '오늘의 마음',
+    },
+  ],
+  neutral: [
+    { text: '고요한 물이 깊다.', author: '한국 속담' },
+    { text: '만족할 줄 아는 사람이 부자다.', author: '노자' },
+    {
+      text: '잔잔한 오늘 하루도\n충분히 잘 살아낸 하루예요.',
+      author: '오늘의 마음',
+    },
+  ],
+  disgusted: [
+    {
+      text: '진흙탕을 지나도\n연꽃은 더러워지지 않는다.',
+      author: '불교 격언',
+    },
+    {
+      text: '불쾌한 일은 빨리 흘려보내는 게\n이기는 거예요.',
+      author: '오늘의 마음',
+    },
+  ],
+  fearful: [
+    {
+      text: '용기란 두려움이 없는 것이 아니라,\n두려움을 이겨내는 것이다.',
+      author: '넬슨 만델라',
+    },
+    {
+      text: '걱정거리의 대부분은\n실제로 일어나지 않는다.',
+      author: '어니 젤린스키',
+    },
+    { text: '두려움은 다가가면 작아져요.', author: '오늘의 마음' },
+  ],
+};
+
 // 감정별 표정 묘사 — [강함(60+), 보통(30+), 옅음] 3단계
 const EXPRESSION_LABELS: Record<string, [string, string, string]> = {
   happy: [
@@ -256,9 +325,29 @@ export class EmotionAnalysisService {
     return isNegative ? sentiment.confidence : 0;
   }
 
-  getQuote(level: 'low' | 'medium' | 'high'): Quote {
-    const pool = QUOTES[level];
-    return pool[Math.floor(Math.random() * pool.length)];
+  // 스트레스 수준 풀 + 주요 감정 풀을 합쳐 랜덤 선택, 직전 문구는 반복 제외
+  getQuote(level: 'low' | 'medium' | 'high', primaryEmotion?: string): Quote {
+    const pool = [...QUOTES[level], ...(EMOTION_QUOTES[primaryEmotion ?? ''] ?? [])];
+
+    let lastText: string | null = null;
+    try {
+      lastText = localStorage.getItem('mc-last-quote-v1');
+    } catch {
+      // localStorage 불가 환경 — 반복 제외 없이 동작
+    }
+
+    const candidates = pool.filter((q) => q.text !== lastText);
+    const picked =
+      (candidates.length > 0 ? candidates : pool)[
+        Math.floor(Math.random() * (candidates.length > 0 ? candidates.length : pool.length))
+      ];
+
+    try {
+      localStorage.setItem('mc-last-quote-v1', picked.text);
+    } catch {
+      // 저장 실패는 무시
+    }
+    return picked;
   }
 
   // 문장 사이 줄바꿈(\n)은 결과 화면에서 white-space: pre-line으로 표시됨
