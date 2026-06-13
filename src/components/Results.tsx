@@ -167,6 +167,12 @@ export default function Results({ result, onReset }: ResultsProps) {
         <p className="analysis-info">
           표정 분석 {result.analyzedTime}초 · 영상은 저장되지 않았어요 ·{' '}
           {secondsLeft}초 후 처음으로 돌아가요
+          {result.calibrationCount >= 15 && (
+            <>
+              <br />
+              지금까지 {result.calibrationCount}번의 측정으로 보정된 결과예요 🌱
+            </>
+          )}
         </p>
       </div>
       <BrandFooter />
