@@ -1,124 +1,99 @@
-# MindController - 스트레스 분석 시스템
+# 마음 들여다보기 · MindController
 
-부스 체험용 웹 기반 음성 + 표정 자동 분석 시스템입니다. 사용자의 1분간의 음성과 표정을 실시간으로 분석하여 스트레스 지수와 감정 상태를 제공합니다.
+청소년 행사·부스 체험용 **웹 기반 표정 스트레스 분석 서비스**입니다. 웹캠 앞에서 5초면 표정을 읽어 스트레스 지수와 감정 상태, 그리고 마음에 닿는 한마디를 전해줍니다.
 
-## 🎯 기능
+**라이브**: https://mindcontroller-theta.vercel.app
 
-- **표정 분석**: 웹캠을 통한 실시간 얼굴 표정 인식
-- **음성 분석**: 마이크를 통한 음성 톤, 속도, 음량 분석
-- **텍스트 분석**: 음성을 텍스트로 변환 후 감정 분석
-- **스트레스 지수 계산**: 표정 + 음성 + 텍스트 종합 분석
-- **실시간 결과**: 1분 분석 후 즉시 결과 제시
-- **한국어 지원**: 완벽한 한국어 음성 인식 및 분석
+> 성빈센트청소년회 · 한국사회공헌협회 청년챔프단 **Butterfly**가 함께합니다.
+
+## 🎯 주요 기능
+
+- **5초 표정 분석** — 얼굴이 인식되면 자동으로 5초간 분석, 버튼 한 번이면 끝
+- **7가지 감정 인식** — MediaPipe 블렌드셰이프(얼굴 근육 52종)로 행복·슬픔·분노·놀람·평온·불쾌·불안을 측정
+- **스트레스 지수 (0~100)** — 감정 조합으로 계산, 낮음/보통/높음 3단계 판정
+- **풍부한 결과 화면** — 강도별 표정 묘사("잔잔한 미소가 머무는 얼굴"), 감정 분포 차트, 맞춤 조언
+- **오늘의 한마디** — 한국 명언·드라마 대사·속담 등 50여 개 문구를 스트레스 수준과 감지된 감정에 맞게 랜덤 제공 (연속 반복 방지)
+- **측정할수록 정확해짐** — 측정마다 익명 통계를 기기에 누적해 분포 기반으로 판정을 자동 보정
+- **프라이버시 우선** — 영상은 저장되지 않고 브라우저 안에서만 처리, 서버 전송 없음
+
+## 🎨 UI/UX
+
+- 하늘 + 풀밭 + 축제 가랜드 배경에 관람차·회전목마·뛰노는 아이들 이모지가 움직이는 장면
+- 아이보리 에디토리얼 카드 디자인 (Noto Serif KR 세리프 헤딩, Pretendard 본문)
+- Google Noto Animated Emoji를 **Lottie 벡터**로 렌더링 (webp 대비 약 10배 가벼움)
+- 모바일 대응, `prefers-reduced-motion` 지원
 
 ## 🛠 기술 스택
 
-- **Frontend**: React 19 + TypeScript
-- **빌드**: Vite
-- **얼굴 감지**: MediaPipe
-- **음성 처리**: Web Audio API + Web Speech API
-- **감정 분석**: TensorFlow.js + Naver CLOVA (선택사항)
-- **API 호출**: Axios
+- **Frontend**: React 19 + TypeScript + Vite
+- **얼굴 인식**: MediaPipe FaceLandmarker (WASM, 블렌드셰이프 출력) — 브라우저 내 추론
+- **애니메이션 이모지**: Noto Animated Emoji (Lottie) + lottie-web
+- **배포**: Vercel (GitHub `master` push 시 자동 배포)
 
-## 📦 설치
+## 📦 설치 및 실행
 
 ```bash
-# 프로젝트 디렉토리로 이동
-cd C:\workspace\MindController
-
-# 의존성 설치
-npm install
-
-# 개발 서버 시작
-npm run dev
-
-# 프로덕션 빌드
-npm run build
+npm install      # 의존성 설치
+npm run dev      # 개발 서버 (http://localhost:5173)
+npm run build    # 타입체크 + 프로덕션 빌드
 ```
 
 ## 🚀 사용 방법
 
-1. `npm run dev`로 개발 서버 시작
-2. 브라우저에서 `http://localhost:5173` 접속
-3. "분석 시작" 버튼 클릭
-4. 웹캠과 마이크 접근 권한 허용
-5. 자연스럽게 1분간 대화하거나 표현하기
-6. 분석 완료 후 결과 확인
+1. 브라우저에서 접속 후 **"마음 들여다보기"** 버튼 클릭
+2. 카메라 권한 허용
+3. 얼굴이 인식되면 자동으로 5초간 분석
+4. 결과 확인 (스트레스 지수·감정 분포·조언·오늘의 한마디)
+5. "한 번 더 해볼래요" 버튼으로 처음으로 돌아가 다음 사람이 이용
 
 ## 📋 프로젝트 구조
 
 ```
 src/
 ├── components/
-│   ├── StressAnalyzer.tsx      # 메인 분석 컴포넌트
-│   └── Results.tsx             # 결과 표시 컴포넌트
+│   ├── StressAnalyzer.tsx        # 메인 화면 + 분석 흐름 (카메라, 감지 루프, 타이머)
+│   ├── Results.tsx               # 결과 화면 (게이지, 감정 분포, 명언, 자동 복귀)
+│   ├── AnimatedEmoji.tsx         # Noto 애니메이션 이모지 (Lottie, 정적 폴백)
+│   ├── PlayfulEmojis.tsx         # 배경 장식 (가랜드, 놀이공원, 아이들)
+│   └── BrandFooter.tsx           # 운영 기관 공동 브랜딩 푸터
 ├── services/
-│   ├── faceDetection.ts        # 얼굴 감지 및 감정 분석
-│   ├── speechRecognition.ts    # 음성 인식 및 톤 분석
-│   └── emotionAnalysis.ts      # 텍스트 감정 분석
-├── types/
-│   └── index.ts                # 타입 정의
-├── styles/
-│   ├── StressAnalyzer.css      # 분석 화면 스타일
-│   └── Results.css             # 결과 화면 스타일
-├── App.tsx
-└── main.tsx
+│   ├── faceDetection.ts          # MediaPipe 로드/워밍업, 블렌드셰이프 → 감정 점수
+│   ├── emotionAnalysis.ts        # 스트레스 지수, 표정 묘사, 명언 선택
+│   └── populationCalibration.ts  # 분포 기반 자동 보정 (Welford 통계)
+├── types/index.ts                # 공용 타입
+└── styles/                       # 화면별 CSS (토큰은 index.css)
+
+public/
+├── models/face_landmarker.task   # 얼굴 랜드마크 모델
+└── mediapipe/wasm/               # MediaPipe WASM 런타임
 ```
 
-## 🔧 환경 설정
+## 📊 분석 로직 개요
 
-### 선택사항: Naver CLOVA Sentiment API
-
-더 정확한 텍스트 감정 분석을 위해 Naver CLOVA API를 사용할 수 있습니다.
-
-1. `.env` 파일 생성 (`.env.example` 참고)
-2. Naver 개발자 센터에서 API 키 발급
-3. 환경 변수 설정
-
-```env
-VITE_NAVER_CLIENT_ID=your_client_id
-VITE_NAVER_CLIENT_SECRET=your_client_secret
-```
-
-## 📊 분석 결과 항목
-
-- **스트레스 지수 (0-100)**: 낮음(0-33), 중간(34-66), 높음(67-100)
-- **주요 감정**: 행복, 슬픔, 분노, 놀람, 중립, 혐오
-- **감지된 키워드**: 음성 분석에서 추출된 주요 키워드
-- **권장사항**: 스트레스 수준에 따른 맞춤 조언
-
-## 🌐 배포
-
-### Vercel 배포
-
-```bash
-npm install -g vercel
-vercel
-```
-
-### 다른 호스팅 서비스
-
-1. 프로덕션 빌드: `npm run build`
-2. `dist` 폴더 배포
-3. 환경 변수 설정
+1. 100ms마다 프레임에서 얼굴 랜드마크 + 블렌드셰이프 추출 (딥러닝)
+2. 블렌드셰이프 가중 조합으로 감정 점수 산출 — 예: 행복 = 미소×1.2 + 볼 올라감×0.4
+3. 5초 평균 → 스트레스 지수 = 슬픔+분노+불쾌+불안×0.8+놀람×0.3−행복×0.5
+4. 기기 누적 분포(15회 이상)에 비추어 z-점수 보정 후 단계 판정 (0~32 낮음 / 33~65 보통 / 66~100 높음)
 
 ## 📝 주의사항
 
-- **웹캠 & 마이크**: 정확한 분석을 위해 모두 필요합니다
-- **밝은 환경**: 표정 인식을 위해 충분한 조명이 필요합니다
-- **조용한 환경**: 음성 인식을 위해 배경 잡음이 적어야 합니다
-- **브라우저 지원**: 최신 Chrome, Firefox, Safari 권장
+- **카메라 필요** — 마이크는 사용하지 않습니다
+- **HTTPS 필수** — 웹캠 권한 때문에 로컬(`localhost`) 또는 HTTPS 환경에서만 동작
+- **밝은 조명** 권장 — 표정 인식 정확도에 영향
+- 최신 Chrome/Edge/Safari 권장
 
-## 🔄 개선 사항
+## 🌐 배포
 
-- [ ] MediaPipe 모델로 더 정확한 얼굴 감지
-- [ ] TensorFlow.js 감정 분류 모델 학습
-- [ ] Naver CLOVA API 통합
-- [ ] 사용자 통계 저장 기능
-- [ ] 다국어 지원
-- [ ] 모바일 최적화
+GitHub `master` 브랜치에 push하면 Vercel이 자동으로 프로덕션에 배포합니다.
+
+```bash
+git push origin master   # → 자동 배포
+vercel --prod            # 수동 배포도 가능
+```
+
+`/models/*`, `/mediapipe/*` 정적 자산은 `vercel.json`에서 1년 불변 캐시로 설정되어 있습니다.
 
 ---
 
-**만든이**: Claude Code  
-**마지막 업데이트**: 2026-06-12
+**운영**: 성빈센트청소년회 × 한국사회공헌협회 청년챔프단 Butterfly
+**마지막 업데이트**: 2026-06-13
