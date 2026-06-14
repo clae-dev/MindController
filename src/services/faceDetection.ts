@@ -1,4 +1,4 @@
-import type { EmotionScores } from '../types/index';
+import type { EmotionScores, FaceFrame } from '../types/index';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { heartRateService } from './heartRate';
 
@@ -6,6 +6,9 @@ interface Point {
   x: number;
   y: number;
 }
+
+// 코끝 이동량(정규화)이 이 값을 넘으면 움직임이 커 rPPG 샘플을 건너뜀
+const MOTION_GATE = 0.02;
 
 export class FaceDetectionService {
   private landmarker: FaceLandmarker | null = null;
@@ -15,9 +18,12 @@ export class FaceDetectionService {
   private isInitialized = false;
   private modelLoadPromise: Promise<void> | null = null;
 
-  // rPPG 심박 측정용: 이마 ROI를 작게 다운샘플해 평균 녹색값을 추출하는 오프스크린 캔버스
+  // rPPG 심박 측정용: 피부 ROI를 작게 다운샘플해 평균 RGB를 추출하는 오프스크린 캔버스
   private sampleCanvas: HTMLCanvasElement | null = null;
   private sampleCtx: CanvasRenderingContext2D | null = null;
+
+  // 직전 프레임 코끝 위치(정규화) — 머리 움직임량 계산용
+  private lastGaze: { x: number; y: number } | null = null;
 
   // 모델 다운로드 + 초기화를 미리 수행 (멱등 — 여러 번 호출해도 1회만 로드)
   loadModel(): Promise<void> {
@@ -44,7 +50,10 @@ export class FaceDetectionService {
     console.log('Face landmarker loaded and warmed up');
   }
 
-  private createLandmarker(fileset: any, delegate: 'GPU' | 'CPU'): Promise<FaceLandmarker> {
+  private createLandmarker(
+    fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>,
+    delegate: 'GPU' | 'CPU'
+  ): Promise<FaceLandmarker> {
     return FaceLandmarker.createFromOptions(fileset, {
       baseOptions: {
         modelAssetPath: '/models/face_landmarker.task',
@@ -77,11 +86,18 @@ export class FaceDetectionService {
     this.videoElement = videoElement;
     this.canvas = canvas || document.createElement('canvas');
     this.canvasCtx = this.canvas.getContext('2d');
+    this.lastGaze = null;
     this.isInitialized = true;
   }
 
-  // 얼굴이 감지되면 감정 점수를, 감지되지 않으면 null을 반환
+  // 얼굴이 감지되면 감정 점수를, 감지되지 않으면 null을 반환 (기존 마음 분석용)
   async detectFaceAndEmotion(): Promise<EmotionScores | null> {
+    const frame = await this.detectFaceFrame();
+    return frame ? frame.emotions : null;
+  }
+
+  // 얼굴이 감지되면 감정 + 긴장/웃음/시선 신호를 함께 반환 (긴장 감지용)
+  async detectFaceFrame(): Promise<FaceFrame | null> {
     if (!this.videoElement || !this.canvas || !this.landmarker || !this.isInitialized) {
       throw new Error('Face detection not initialized');
     }
@@ -116,15 +132,48 @@ export class FaceDetectionService {
 
       this.drawLandmarks(ctx, points);
 
-      // rPPG: 이마 ROI 평균 녹색값을 심박 추정용으로 수집
-      this.sampleForehead(normalized);
+      // 코끝(랜드마크 1) 정규화 좌표 → 시선/머리 위치 + 직전 대비 이동량
+      const nose = normalized[1] ?? normalized[4] ?? { x: 0.5, y: 0.5 };
+      const gazeX = nose.x;
+      const gazeY = nose.y;
+      const headMotion = this.lastGaze
+        ? Math.hypot(gazeX - this.lastGaze.x, gazeY - this.lastGaze.y)
+        : 0;
+      this.lastGaze = { x: gazeX, y: gazeY };
+
+      // rPPG: 움직임이 작을 때만 피부 ROI를 심박 추정용으로 수집 (품질 게이팅)
+      if (headMotion < MOTION_GATE) {
+        this.sampleForehead(normalized);
+      }
 
       // 블렌드셰이프(표정 근육 수치) 기반 계산 — 랜드마크 거리 추정보다 훨씬 정확
       const blendshapes = result.faceBlendshapes?.[0]?.categories;
       if (blendshapes && blendshapes.length > 0) {
-        return this.calculateEmotionFromBlendshapes(blendshapes);
+        const shape = this.blendshapeMap(blendshapes);
+        return {
+          emotions: this.calculateEmotionFromBlendshapes(shape),
+          ...this.extractTensionSignals(shape),
+          gazeX,
+          gazeY,
+          headMotion,
+        };
       }
-      return this.calculateEmotionFromLandmarks(points);
+
+      // 폴백: 블렌드셰이프가 없으면 감정만 추정하고 긴장 신호는 0
+      return {
+        emotions: this.calculateEmotionFromLandmarks(points),
+        browDown: 0,
+        mouthPress: 0,
+        noseSneer: 0,
+        eyeSquint: 0,
+        mouthStretch: 0,
+        smile: 0,
+        cheekSquint: 0,
+        blink: 0,
+        gazeX,
+        gazeY,
+        headMotion,
+      };
     } catch (error) {
       console.error('Face detection error:', error);
       throw error;
@@ -171,12 +220,35 @@ export class FaceDetectionService {
     ctx.stroke();
   }
 
-  // ARKit 스타일 블렌드셰이프(0~1) 조합으로 7종 감정 점수(0~100) 산출
-  private calculateEmotionFromBlendshapes(
+  // 블렌드셰이프 카테고리 배열 → 이름→점수 Map (감정·긴장 계산에서 공유)
+  private blendshapeMap(
     categories: Array<{ categoryName: string; score: number }>
-  ): EmotionScores {
+  ): Map<string, number> {
     const shape = new Map<string, number>();
     for (const c of categories) shape.set(c.categoryName, c.score);
+    return shape;
+  }
+
+  // 긴장 감지·웃음 판별에 쓰는 블렌드셰이프 부분집합 (0~1)
+  private extractTensionSignals(
+    shape: Map<string, number>
+  ): Omit<FaceFrame, 'emotions' | 'gazeX' | 'gazeY' | 'headMotion'> {
+    const s = (name: string) => shape.get(name) ?? 0;
+    const pair = (base: string) => (s(`${base}Left`) + s(`${base}Right`)) / 2;
+    return {
+      browDown: pair('browDown'),
+      mouthPress: pair('mouthPress'),
+      noseSneer: pair('noseSneer'),
+      eyeSquint: pair('eyeSquint'),
+      mouthStretch: pair('mouthStretch'),
+      smile: pair('mouthSmile'),
+      cheekSquint: pair('cheekSquint'),
+      blink: pair('eyeBlink'),
+    };
+  }
+
+  // ARKit 스타일 블렌드셰이프(0~1) 조합으로 7종 감정 점수(0~100) 산출
+  private calculateEmotionFromBlendshapes(shape: Map<string, number>): EmotionScores {
     const s = (name: string) => shape.get(name) ?? 0;
     const pair = (base: string) => (s(`${base}Left`) + s(`${base}Right`)) / 2;
     const clamp = (v: number) => Math.min(100, Math.max(0, v));
@@ -216,8 +288,51 @@ export class FaceDetectionService {
     return scores;
   }
 
-  // 블렌드셰이프가 없을 때의 폴백: 랜드마크 거리 기반 단순 추정
-  // 이마 ROI의 평균 녹색값을 추출해 심박 추정 샘플로 전달
+  // 정규화 좌표 중심 박스에서 평균 R/G/B를 추출 (화면 밖이면 null) — POS rPPG용
+  private sampleBox(
+    cx: number,
+    cy: number,
+    w: number,
+    h: number,
+    vw: number,
+    vh: number
+  ): { r: number; g: number; b: number } | null {
+    const pw = w * vw;
+    const ph = h * vh;
+    const sx = cx * vw - pw / 2;
+    const sy = cy * vh - ph / 2;
+    if (sx < 0 || sy < 0 || sx + pw > vw || sy + ph > vh || pw < 4 || ph < 4) {
+      return null;
+    }
+
+    if (!this.sampleCanvas) {
+      this.sampleCanvas = document.createElement('canvas');
+      this.sampleCanvas.width = 20;
+      this.sampleCanvas.height = 20;
+      this.sampleCtx = this.sampleCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const sctx = this.sampleCtx;
+    if (!sctx) return null;
+
+    try {
+      sctx.drawImage(this.videoElement!, sx, sy, pw, ph, 0, 0, 20, 20);
+      const data = sctx.getImageData(0, 0, 20, 20).data;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+      }
+      const px = data.length / 4;
+      return { r: r / px, g: g / px, b: b / px };
+    } catch {
+      return null; // ROI 샘플 실패는 무시 (심박만 영향)
+    }
+  }
+
+  // 이마 + 양 볼 다중 ROI에서 평균 RGB를 추출해 심박(POS) 추정 샘플로 전달
   private sampleForehead(normalized: Array<{ x: number; y: number }>): void {
     const video = this.videoElement;
     if (!video || !video.videoWidth) return;
@@ -229,40 +344,33 @@ export class FaceDetectionService {
 
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    const h = Math.abs(brow.y - top.y);
-    if (h <= 0) return;
+    const fh = Math.abs(brow.y - top.y); // 이마 높이(정규화)
+    if (fh <= 0) return;
 
-    // 이마 안쪽 박스 (헤어라인/눈썹은 살짝 피함). 폭·높이는 이마 높이(정규화) 기준 → 픽셀 변환
-    const pw = h * 1.3 * vh;
-    const ph = h * 0.6 * vh;
-    const cx = mid.x * vw;
-    const cy = (top.y + h * 0.45) * vh;
-    const sx = cx - pw / 2;
-    const sy = cy - ph / 2;
+    // ROI 중심(정규화): 이마 + 좌/우 볼. 헤어라인/눈썹은 살짝 피함
+    const rois: Array<{ cx: number; cy: number; w: number; h: number }> = [
+      { cx: mid.x, cy: top.y + fh * 0.45, w: fh * 1.3, h: fh * 0.6 },
+    ];
+    const leftCheek = normalized[50];
+    const rightCheek = normalized[280];
+    if (leftCheek) rois.push({ cx: leftCheek.x, cy: leftCheek.y, w: fh * 0.9, h: fh * 0.9 });
+    if (rightCheek) rois.push({ cx: rightCheek.x, cy: rightCheek.y, w: fh * 0.9, h: fh * 0.9 });
 
-    // 화면 밖이면 스킵
-    if (sx < 0 || sy < 0 || sx + pw > vw || sy + ph > vh || pw < 4 || ph < 4) {
-      return;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let count = 0;
+    for (const roi of rois) {
+      const m = this.sampleBox(roi.cx, roi.cy, roi.w, roi.h, vw, vh);
+      if (m) {
+        r += m.r;
+        g += m.g;
+        b += m.b;
+        count += 1;
+      }
     }
-
-    if (!this.sampleCanvas) {
-      this.sampleCanvas = document.createElement('canvas');
-      this.sampleCanvas.width = 20;
-      this.sampleCanvas.height = 20;
-      this.sampleCtx = this.sampleCanvas.getContext('2d', { willReadFrequently: true });
-    }
-    const sctx = this.sampleCtx;
-    if (!sctx) return;
-
-    try {
-      sctx.drawImage(video, sx, sy, pw, ph, 0, 0, 20, 20);
-      const data = sctx.getImageData(0, 0, 20, 20).data;
-      let g = 0;
-      for (let i = 1; i < data.length; i += 4) g += data[i]; // 녹색 채널
-      heartRateService.addSample(g / (data.length / 4), performance.now());
-    } catch {
-      // ROI 샘플 실패는 무시 (심박만 영향)
-    }
+    if (count === 0) return;
+    heartRateService.addSample(r / count, g / count, b / count, performance.now());
   }
 
   private calculateEmotionFromLandmarks(landmarks: Point[]): EmotionScores {
@@ -333,6 +441,7 @@ export class FaceDetectionService {
     this.canvas = null;
     this.canvasCtx = null;
     this.videoElement = null;
+    this.lastGaze = null;
     this.isInitialized = false;
   }
 }

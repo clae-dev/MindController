@@ -167,6 +167,30 @@
   font-size: 0.84em;
 }
 
+/* 긴장 감지 모드 진입 버튼 */
+.mode-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 16px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.9em;
+  font-weight: 600;
+  padding: 11px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.mode-switch:hover {
+  color: var(--ink);
+  border-color: var(--sage);
+  background: rgba(93, 141, 118, 0.06);
+}
+
 /* 분석 중 */
 .analyzing-state {
   padding: 24px 24px 32px;

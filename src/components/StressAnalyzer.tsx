@@ -5,6 +5,7 @@ import { emotionAnalysisService } from '../services/emotionAnalysis';
 import { populationCalibration } from '../services/populationCalibration';
 import { heartRateService } from '../services/heartRate';
 import Results from './Results';
+import TensionDetector from './TensionDetector';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
 import PlayfulEmojis from './PlayfulEmojis';
@@ -49,6 +50,7 @@ export default function StressAnalyzer() {
   const detectLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runningRef = useRef(false);
   const [status, setStatus] = useState<AnalysisStatus>('idle');
+  const [appMode, setAppMode] = useState<'mind' | 'tension'>('mind');
   const [modelReady, setModelReady] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(ANALYSIS_DURATION);
   const [result, setResult] = useState<AnalysisSummary | null>(null);
@@ -274,6 +276,10 @@ export default function StressAnalyzer() {
     }
   };
 
+  if (appMode === 'tension') {
+    return <TensionDetector onBack={() => setAppMode('mind')} />;
+  }
+
   if (result && status === 'completed') {
     return <Results result={result} onReset={resetAnalysis} />;
   }
@@ -341,6 +347,9 @@ export default function StressAnalyzer() {
               )}
             </button>
             <p className="hint">버튼을 누르면 카메라 사용 권한을 요청해요</p>
+            <button className="mode-switch" onClick={() => setAppMode('tension')}>
+              <AnimatedEmoji emoji="🔍" size={18} /> 긴장 감지도 해볼래요
+            </button>
           </div>
         )}
 
