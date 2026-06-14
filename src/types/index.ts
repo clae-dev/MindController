@@ -33,6 +33,7 @@ export interface AnalysisSummary {
   quote: Quote;
   analyzedTime: number;
   calibrationCount: number; // 이 기기에 누적된 측정 횟수 (분포 보정 표본)
+  heartRate?: { bpm: number; label: string }; // rPPG 심박 추정 (신뢰도 충분 시에만)
 }
 
 export interface AnalysisResult {

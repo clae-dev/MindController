@@ -87,6 +87,18 @@ export default function Results({ result, onReset }: ResultsProps) {
           <p className="emotion-caption">{result.emotionDetail}</p>
         </div>
 
+        {result.heartRate && (
+          <div className="heart-card">
+            <span className="heart-emoji">
+              <AnimatedEmoji emoji="❤️" size={30} label="심박" />
+            </span>
+            <span className="heart-bpm">
+              <b>{result.heartRate.bpm}</b> bpm
+            </span>
+            <span className="heart-label">{result.heartRate.label}</span>
+          </div>
+        )}
+
         {spectrum.length > 0 && (
           <div className="spectrum-section">
             <p className="spectrum-title">감정 분포</p>

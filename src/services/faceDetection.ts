@@ -1,5 +1,6 @@
 import type { EmotionScores } from '../types/index';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import { heartRateService } from './heartRate';
 
 interface Point {
   x: number;
@@ -13,6 +14,10 @@ export class FaceDetectionService {
   private videoElement: HTMLVideoElement | null = null;
   private isInitialized = false;
   private modelLoadPromise: Promise<void> | null = null;
+
+  // rPPG 심박 측정용: 이마 ROI를 작게 다운샘플해 평균 녹색값을 추출하는 오프스크린 캔버스
+  private sampleCanvas: HTMLCanvasElement | null = null;
+  private sampleCtx: CanvasRenderingContext2D | null = null;
 
   // 모델 다운로드 + 초기화를 미리 수행 (멱등 — 여러 번 호출해도 1회만 로드)
   loadModel(): Promise<void> {
@@ -110,6 +115,9 @@ export class FaceDetectionService {
       }));
 
       this.drawLandmarks(ctx, points);
+
+      // rPPG: 이마 ROI 평균 녹색값을 심박 추정용으로 수집
+      this.sampleForehead(normalized);
 
       // 블렌드셰이프(표정 근육 수치) 기반 계산 — 랜드마크 거리 추정보다 훨씬 정확
       const blendshapes = result.faceBlendshapes?.[0]?.categories;
@@ -209,6 +217,54 @@ export class FaceDetectionService {
   }
 
   // 블렌드셰이프가 없을 때의 폴백: 랜드마크 거리 기반 단순 추정
+  // 이마 ROI의 평균 녹색값을 추출해 심박 추정 샘플로 전달
+  private sampleForehead(normalized: Array<{ x: number; y: number }>): void {
+    const video = this.videoElement;
+    if (!video || !video.videoWidth) return;
+
+    const top = normalized[10]; // 이마 상단 중앙
+    const mid = normalized[151]; // 이마 중앙
+    const brow = normalized[9]; // 미간 위
+    if (!top || !mid || !brow) return;
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const h = Math.abs(brow.y - top.y);
+    if (h <= 0) return;
+
+    // 이마 안쪽 박스 (헤어라인/눈썹은 살짝 피함). 폭·높이는 이마 높이(정규화) 기준 → 픽셀 변환
+    const pw = h * 1.3 * vh;
+    const ph = h * 0.6 * vh;
+    const cx = mid.x * vw;
+    const cy = (top.y + h * 0.45) * vh;
+    const sx = cx - pw / 2;
+    const sy = cy - ph / 2;
+
+    // 화면 밖이면 스킵
+    if (sx < 0 || sy < 0 || sx + pw > vw || sy + ph > vh || pw < 4 || ph < 4) {
+      return;
+    }
+
+    if (!this.sampleCanvas) {
+      this.sampleCanvas = document.createElement('canvas');
+      this.sampleCanvas.width = 20;
+      this.sampleCanvas.height = 20;
+      this.sampleCtx = this.sampleCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const sctx = this.sampleCtx;
+    if (!sctx) return;
+
+    try {
+      sctx.drawImage(video, sx, sy, pw, ph, 0, 0, 20, 20);
+      const data = sctx.getImageData(0, 0, 20, 20).data;
+      let g = 0;
+      for (let i = 1; i < data.length; i += 4) g += data[i]; // 녹색 채널
+      heartRateService.addSample(g / (data.length / 4), performance.now());
+    } catch {
+      // ROI 샘플 실패는 무시 (심박만 영향)
+    }
+  }
+
   private calculateEmotionFromLandmarks(landmarks: Point[]): EmotionScores {
     // 주요 랜드마크 인덱스
     const leftEye = landmarks[33]; // 왼쪽 눈 바깥쪽

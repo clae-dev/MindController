@@ -3,14 +3,23 @@ import type { AnalysisStatus, AnalysisSummary, EmotionScores } from '../types/in
 import { faceDetectionService } from '../services/faceDetection';
 import { emotionAnalysisService } from '../services/emotionAnalysis';
 import { populationCalibration } from '../services/populationCalibration';
+import { heartRateService } from '../services/heartRate';
 import Results from './Results';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
 import PlayfulEmojis from './PlayfulEmojis';
 import '../styles/StressAnalyzer.css';
 
-const ANALYSIS_DURATION = 5; // 분석 시간 (초)
+const ANALYSIS_DURATION = 10; // 분석 시간 (초) — 심박 추정을 위해 10초
 const DETECTION_INTERVAL = 100; // 얼굴 감지 주기 (ms)
+
+// 추정 심박수에 따른 상태 라벨
+const heartRateLabel = (bpm: number): string => {
+  if (bpm < 70) return '아주 안정적이에요';
+  if (bpm < 90) return '편안한 상태예요';
+  if (bpm < 105) return '살짝 긴장했어요';
+  return '많이 두근거려요';
+};
 
 // 모델 로드 실패는 WASM/모델 파일 다운로드 실패 — 개발 중에는 대부분 dev 서버가 꺼진 경우
 const modelLoadErrorMessage = (): string =>
@@ -79,6 +88,7 @@ export default function StressAnalyzer() {
       setError(null);
       setStatus('detecting');
       setTimeRemaining(ANALYSIS_DURATION);
+      heartRateService.reset();
 
       // 1. 웹캠 접근 (카메라만 사용) — 크게 표시되므로 높은 해상도를 우선 요청
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -155,6 +165,16 @@ export default function StressAnalyzer() {
             primaryEmotion
           );
 
+          // 심박 추정 (rPPG) — 신뢰도가 충분할 때만 결과에 포함
+          const hr = heartRateService.estimate();
+          const heartRate =
+            hr && hr.confidence >= 0.35
+              ? {
+                  bpm: Math.min(120, Math.max(50, hr.bpm)),
+                  label: heartRateLabel(Math.min(120, Math.max(50, hr.bpm))),
+                }
+              : undefined;
+
           // 결과 저장
           const stressLevel =
             stressIndex < 33 ? 'low' : stressIndex < 66 ? 'medium' : 'high';
@@ -169,6 +189,7 @@ export default function StressAnalyzer() {
             quote: emotionAnalysisService.getQuote(stressLevel, primaryEmotion),
             analyzedTime: ANALYSIS_DURATION,
             calibrationCount: populationCalibration.getCount(),
+            heartRate,
           };
 
           setResult(summary);
@@ -346,8 +367,8 @@ export default function StressAnalyzer() {
                   <span className="count-num">{timeRemaining}</span>초 남았어요
                 </div>
                 <div className="status-line">
-                  표정을 읽는 중이에요
-                  <AnimatedEmoji emoji="🍃" size={22} label="나뭇잎" />
+                  표정과 심박을 함께 읽는 중이에요
+                  <AnimatedEmoji emoji="❤️" size={22} label="심박" />
                 </div>
               </>
             )}
