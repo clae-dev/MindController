@@ -1,15 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { AnalysisStatus, AnalysisSummary, EmotionScores } from '../types/index';
 import { faceDetectionService } from '../services/faceDetection';
 import { emotionAnalysisService } from '../services/emotionAnalysis';
 import { populationCalibration } from '../services/populationCalibration';
 import { heartRateService } from '../services/heartRate';
-import Results from './Results';
-import TensionDetector from './TensionDetector';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
 import PlayfulEmojis from './PlayfulEmojis';
 import '../styles/StressAnalyzer.css';
+
+// 결과·긴장 화면은 사용자 상호작용 후에야 필요하므로 분리 로드해 첫 진입 번들을 줄임
+const Results = lazy(() => import('./Results'));
+const TensionDetector = lazy(() => import('./TensionDetector'));
 
 const ANALYSIS_DURATION = 10; // 분석 시간 (초) — 심박 추정을 위해 10초
 const DETECTION_INTERVAL = 100; // 얼굴 감지 주기 (ms)
@@ -277,16 +279,24 @@ export default function StressAnalyzer() {
   };
 
   if (appMode === 'tension') {
-    return <TensionDetector onBack={() => setAppMode('mind')} />;
+    return (
+      <Suspense fallback={null}>
+        <TensionDetector onBack={() => setAppMode('mind')} />
+      </Suspense>
+    );
   }
 
   if (result && status === 'completed') {
-    return <Results result={result} onReset={resetAnalysis} />;
+    return (
+      <Suspense fallback={null}>
+        <Results result={result} onReset={resetAnalysis} />
+      </Suspense>
+    );
   }
 
   return (
     <div className="stress-analyzer sky-scene">
-      <PlayfulEmojis />
+      <PlayfulEmojis paused={status === 'detecting' || status === 'analyzing'} />
       <div className="container">
         <header className="page-header">
           <span className="badge">

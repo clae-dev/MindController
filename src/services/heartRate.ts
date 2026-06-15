@@ -17,6 +17,9 @@ const MIN_DURATION_MS = 4000; // 이보다 짧으면 추정 불가
 const MIN_HZ = 0.7; // 42 bpm
 const MAX_HZ = 4.0; // 240 bpm
 const POS_WINDOW_SEC = 1.6; // POS 슬라이딩 윈도 길이(초)
+// 자유 측정처럼 시간 제한이 없는 모드에서 샘플이 무한히 쌓이면
+// estimate()의 POS·DFT 비용과 메모리가 선형 증가하므로 최근 구간만 유지
+const MAX_SAMPLE_AGE_MS = 15000;
 
 class HeartRateService {
   private samples: Sample[] = [];
@@ -27,6 +30,13 @@ class HeartRateService {
 
   addSample(r: number, g: number, b: number, t: number): void {
     this.samples.push({ r, g, b, t });
+    // 최근 MAX_SAMPLE_AGE_MS 구간만 유지 (오래된 샘플 제거)
+    const cutoff = t - MAX_SAMPLE_AGE_MS;
+    if (this.samples[0].t < cutoff) {
+      let drop = 0;
+      while (drop < this.samples.length && this.samples[drop].t < cutoff) drop++;
+      this.samples.splice(0, drop);
+    }
   }
 
   estimate(): { bpm: number; confidence: number } | null {

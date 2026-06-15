@@ -5,6 +5,8 @@ interface AnimatedEmojiProps {
   emoji: string;
   size?: number;
   label?: string;
+  /** true면 애니메이션을 멈춰 메인 스레드를 양보 (분석 중 추론에 자원 집중) */
+  paused?: boolean;
 }
 
 // 이모지 문자열 → Noto Animated Emoji URL 코드포인트 (fe0f 포함, '_' 연결)
@@ -38,8 +40,14 @@ const prefersReducedMotion = () =>
  * 첫 화면 다운로드를 약 10MB → 1MB대로 줄인다.
  * 세트에 없는 이모지는 일반 텍스트 이모지로 폴백.
  */
-export default function AnimatedEmoji({ emoji, size = 28, label }: AnimatedEmojiProps) {
+export default function AnimatedEmoji({ emoji, size = 28, label, paused = false }: AnimatedEmojiProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
+  const animationRef = useRef<ReturnType<typeof lottie.loadAnimation> | null>(null);
+  // 비동기 로드 완료 시점에 최신 paused 값을 읽기 위한 ref (초기값은 마운트 시점 paused)
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -47,16 +55,15 @@ export default function AnimatedEmoji({ emoji, size = 28, label }: AnimatedEmoji
 
     const url = `https://fonts.gstatic.com/s/e/notoemoji/latest/${toCodepoint(emoji)}/lottie.json`;
     let cancelled = false;
-    let animation: ReturnType<typeof lottie.loadAnimation> | null = null;
 
     loadLottieData(url)
       .then((data) => {
         if (cancelled || !containerRef.current) return;
-        animation = lottie.loadAnimation({
+        animationRef.current = lottie.loadAnimation({
           container: containerRef.current,
           renderer: 'svg',
           loop: true,
-          autoplay: !prefersReducedMotion(),
+          autoplay: !prefersReducedMotion() && !pausedRef.current,
           animationData: data,
         });
       })
@@ -66,9 +73,18 @@ export default function AnimatedEmoji({ emoji, size = 28, label }: AnimatedEmoji
 
     return () => {
       cancelled = true;
-      animation?.destroy();
+      animationRef.current?.destroy();
+      animationRef.current = null;
     };
   }, [emoji, failed]);
+
+  // paused 토글에 반응 (reduced-motion이면 재생하지 않음)
+  useEffect(() => {
+    const anim = animationRef.current;
+    if (!anim) return;
+    if (paused) anim.pause();
+    else if (!prefersReducedMotion()) anim.play();
+  }, [paused]);
 
   if (failed) {
     return (

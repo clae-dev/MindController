@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CSSProperties } from 'react';
 import AnimatedEmoji from './AnimatedEmoji';
 
@@ -36,7 +37,13 @@ const ITEMS: PlayfulItem[] = [
 // 축제 가랜드 깃발 색 (4색 반복)
 const PENNANT_COUNT = 16;
 
-export default function PlayfulEmojis() {
+interface PlayfulEmojisProps {
+  /** 분석 중에는 true로 넘겨 배경 Lottie를 멈춰 추론에 자원을 양보 */
+  paused?: boolean;
+}
+
+// props가 paused뿐이라 memo로 부모의 잦은 리렌더(라이브 틱 등)에도 재조정을 건너뜀
+function PlayfulEmojis({ paused = false }: PlayfulEmojisProps) {
   return (
     <div className="playful-layer" aria-hidden="true">
       <div className="bunting">
@@ -54,9 +61,11 @@ export default function PlayfulEmojis() {
             animationDuration: item.duration,
           }}
         >
-          <AnimatedEmoji emoji={item.emoji} size={item.size} />
+          <AnimatedEmoji emoji={item.emoji} size={item.size} paused={paused} />
         </span>
       ))}
     </div>
   );
 }
+
+export default memo(PlayfulEmojis);

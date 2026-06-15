@@ -113,23 +113,36 @@ class TensionAnalysisService {
   private baseline: Baseline | null = null;
   private window: FrameRecord[] = [];
   private ema = 0;
-  private sessionTensions: number[] = [];
-  private sessionBreakdowns: TensionBreakdown[] = [];
-  private confidences: number[] = [];
+  // 세션 통계는 배열로 쌓지 않고 러닝 누산기로 유지 (무한 증가·Math.max 스프레드 회피)
+  private sessionPeak = 0;
+  private sessionSum = 0;
+  private sessionCount = 0;
+  private breakdownTotals: TensionBreakdown = {
+    facial: 0,
+    instability: 0,
+    blink: 0,
+    gaze: 0,
+    heart: 0,
+  };
+  private confidenceSum = 0;
+  private confidenceCount = 0;
   private startT: number | null = null;
   private lastT: number | null = null;
   private cachedBpm: number | null = null;
   private lastBpmCalcT = 0;
-  private segment: { label: string; tensions: number[] } | null = null;
+  private segment: { label: string; peak: number; sum: number; count: number } | null = null;
 
   reset(): void {
     this.baselineRecords = [];
     this.baseline = null;
     this.window = [];
     this.ema = 0;
-    this.sessionTensions = [];
-    this.sessionBreakdowns = [];
-    this.confidences = [];
+    this.sessionPeak = 0;
+    this.sessionSum = 0;
+    this.sessionCount = 0;
+    this.breakdownTotals = { facial: 0, instability: 0, blink: 0, gaze: 0, heart: 0 };
+    this.confidenceSum = 0;
+    this.confidenceCount = 0;
     this.startT = null;
     this.lastT = null;
     this.cachedBpm = null;
@@ -223,49 +236,54 @@ class TensionAnalysisService {
     const tensionRaw = clamp01(raw) * 100;
 
     // 지수이동평균으로 표시 안정화
-    this.ema = this.sessionTensions.length === 0 ? tensionRaw : this.ema + EMA_ALPHA * (tensionRaw - this.ema);
+    this.ema = this.sessionCount === 0 ? tensionRaw : this.ema + EMA_ALPHA * (tensionRaw - this.ema);
     const tension = Math.round(this.ema);
 
     // 신뢰도: 최근 윈도의 저품질(움직임 큰) 프레임 비율
     const lowQ = this.window.filter((r) => r.lowQuality).length;
     const confidence = clamp01(1 - lowQ / Math.max(1, this.window.length));
 
-    this.sessionTensions.push(tension);
-    this.sessionBreakdowns.push(n);
-    this.confidences.push(confidence);
-    if (this.segment) this.segment.tensions.push(tension);
+    // 세션 누산기 갱신
+    if (tension > this.sessionPeak) this.sessionPeak = tension;
+    this.sessionSum += tension;
+    this.sessionCount += 1;
+    this.breakdownTotals.facial += n.facial;
+    this.breakdownTotals.instability += n.instability;
+    this.breakdownTotals.blink += n.blink;
+    this.breakdownTotals.gaze += n.gaze;
+    this.breakdownTotals.heart += n.heart;
+    this.confidenceSum += confidence;
+    this.confidenceCount += 1;
+    if (this.segment) {
+      if (tension > this.segment.peak) this.segment.peak = tension;
+      this.segment.sum += tension;
+      this.segment.count += 1;
+    }
 
     return { tension, breakdown: n, confidence };
   }
 
   // 질문 챌린지: 구간 시작/종료
   beginSegment(label: string): void {
-    this.segment = { label, tensions: [] };
+    this.segment = { label, peak: 0, sum: 0, count: 0 };
   }
 
   endSegment(): QuestionResult {
-    const seg = this.segment ?? { label: '', tensions: [] };
+    const seg = this.segment ?? { label: '', peak: 0, sum: 0, count: 0 };
     this.segment = null;
     return {
       question: seg.label,
-      peak: seg.tensions.length ? Math.max(...seg.tensions) : 0,
-      average: Math.round(mean(seg.tensions)),
+      peak: seg.count ? seg.peak : 0,
+      average: seg.count ? Math.round(seg.sum / seg.count) : 0,
     };
   }
 
   getSummary(): TensionSummary {
-    const peak = this.sessionTensions.length ? Math.max(...this.sessionTensions) : 0;
-    const average = Math.round(mean(this.sessionTensions));
+    const peak = this.sessionPeak;
+    const average = this.sessionCount ? Math.round(this.sessionSum / this.sessionCount) : 0;
 
     // 성분별 누적 기여 합 → 최대 기여 신호
-    const totals: TensionBreakdown = { facial: 0, instability: 0, blink: 0, gaze: 0, heart: 0 };
-    for (const b of this.sessionBreakdowns) {
-      totals.facial += b.facial;
-      totals.instability += b.instability;
-      totals.blink += b.blink;
-      totals.gaze += b.gaze;
-      totals.heart += b.heart;
-    }
+    const totals = this.breakdownTotals;
     const topSignal = (Object.keys(totals) as Array<keyof TensionBreakdown>).reduce((a, b) =>
       totals[b] > totals[a] ? b : a
     );
@@ -279,7 +297,7 @@ class TensionAnalysisService {
       average,
       band,
       topSignal,
-      confidence: clamp01(mean(this.confidences)),
+      confidence: clamp01(this.confidenceCount ? this.confidenceSum / this.confidenceCount : 0),
       durationSec,
     };
   }

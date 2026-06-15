@@ -309,7 +309,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
 
   return (
     <div className="stress-analyzer sky-scene">
-      <PlayfulEmojis />
+      <PlayfulEmojis paused={measuring} />
       <div className="container">
         <header className="page-header">
           <span className="badge">
