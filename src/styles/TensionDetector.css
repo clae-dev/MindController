@@ -18,18 +18,41 @@
   border-radius: 14px;
   padding: 18px 20px;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.18s var(--ease-spring), border-color 0.2s ease, box-shadow 0.25s ease;
+}
+
+/* 우측 화살표 어포던스 — 호버 시 살짝 밀림 */
+.mode-card::after {
+  content: '→';
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 1.25em;
+  transition: transform 0.2s var(--ease-out), color 0.2s ease;
 }
 
 .mode-card:hover {
   transform: translateY(-2px);
   border-color: var(--sage);
-  box-shadow: 0 12px 28px -20px rgba(46, 43, 38, 0.4);
+  box-shadow: 0 14px 30px -20px rgba(46, 43, 38, 0.45);
+}
+
+.mode-card:hover::after {
+  transform: translateX(5px);
+  color: var(--sage);
+}
+
+.mode-card:active {
+  transform: translateY(0) scale(0.99);
 }
 
 .mode-emoji {
   display: inline-flex;
   flex-shrink: 0;
+  transition: transform 0.28s var(--ease-spring);
+}
+
+.mode-card:hover .mode-emoji {
+  transform: scale(1.14) rotate(-5deg);
 }
 
 .mode-text {
@@ -95,10 +118,42 @@
 }
 
 .tension-fill {
+  position: relative;
+  overflow: hidden;
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(to right, var(--sage), var(--mustard) 55%, var(--maroon));
-  transition: width 0.18s linear;
+  box-shadow: 0 0 14px -3px rgba(192, 143, 60, 0.55);
+  transition: width 0.18s linear, box-shadow 0.3s ease;
+}
+
+/* 게이지 위로 빛이 계속 흐르며 살아있는 느낌 */
+.tension-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: translateX(-150%);
+  animation: sheen 2s var(--ease-out) infinite;
+}
+
+/* 긴장 높을 때: 숫자가 콩닥대고 게이지가 붉게 달아오름 */
+.tension-gauge.is-high .tension-fill {
+  box-shadow: 0 0 20px -1px rgba(185, 84, 63, 0.7);
+}
+
+.tension-gauge.is-high .tension-readout b {
+  animation: tense-pulse 0.8s var(--ease-soft) infinite;
+}
+
+@keyframes tense-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
 }
 
 .tension-readout {
@@ -297,4 +352,76 @@
 
 .tension-result .start-button {
   margin-bottom: 10px;
+}
+
+/* ── 진입 모션 ───────────────────────────────────────── */
+
+/* 모드 메뉴: 카드가 차례로 또르륵 */
+.tension-menu .mode-card,
+.tension-menu .ghost-button,
+.tension-menu .hint {
+  animation: fade-up 0.5s var(--ease-out) both;
+}
+
+.tension-menu .mode-card:nth-child(1) {
+  animation-delay: 0.08s;
+}
+.tension-menu .mode-card:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.tension-menu .mode-card:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.tension-menu .ghost-button {
+  animation-delay: 0.32s;
+}
+.tension-menu .hint {
+  animation-delay: 0.38s;
+}
+
+/* 결과: 섹션 순차 등장 */
+.tension-result > * {
+  animation: fade-up 0.5s var(--ease-out) both;
+}
+.tension-result > *:nth-child(1) {
+  animation-delay: 0.08s;
+}
+.tension-result > *:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.tension-result > *:nth-child(3) {
+  animation-delay: 0.28s;
+}
+.tension-result > *:nth-child(4) {
+  animation-delay: 0.36s;
+}
+.tension-result > *:nth-child(n + 5) {
+  animation-delay: 0.44s;
+}
+
+.result-band > span,
+.smile-hero > span {
+  animation: pop-in 0.6s var(--ease-spring) 0.15s both;
+}
+
+.question-text {
+  animation: fade-up 0.45s var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tension-fill::after,
+  .tension-gauge.is-high .tension-readout b,
+  .tension-menu .mode-card,
+  .tension-menu .ghost-button,
+  .tension-menu .hint,
+  .tension-result > *,
+  .result-band > span,
+  .smile-hero > span,
+  .question-text {
+    animation: none;
+  }
+
+  .mode-card:hover .mode-emoji {
+    transform: none;
+  }
 }

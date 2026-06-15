@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AnalysisSummary } from '../types/index';
 import { EMOTION_NAMES } from '../services/emotionAnalysis';
+import { useCountUp } from '../hooks/useCountUp';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
 import PlayfulEmojis from './PlayfulEmojis';
@@ -44,6 +45,8 @@ const LEVEL_INFO: Record<
 export default function Results({ result, onReset }: ResultsProps) {
   // 마운트 후 게이지가 0에서 결과값까지 차오르도록
   const [gaugeValue, setGaugeValue] = useState(0);
+  // 점수 숫자는 또르륵 카운트업
+  const countedIndex = useCountUp(result.stressIndex);
 
   useEffect(() => {
     const id = setTimeout(() => setGaugeValue(result.stressIndex), 80);
@@ -135,7 +138,7 @@ export default function Results({ result, onReset }: ResultsProps) {
             <div className="gauge-fill" style={{ width: `${gaugeValue}%` }} />
           </div>
           <div className="score-value">
-            <b style={{ color: level.color }}>{result.stressIndex}</b>
+            <b style={{ color: level.color }}>{countedIndex}</b>
             <span>/ 100</span>
           </div>
         </div>

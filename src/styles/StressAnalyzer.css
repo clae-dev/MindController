@@ -130,12 +130,14 @@
 
 /* 시작 버튼: 차콜 필 */
 .start-button {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  background: var(--charcoal);
+  background: linear-gradient(135deg, var(--charcoal), #3b3930);
   color: #f7f4ed;
   border: none;
   padding: 16px 40px;
@@ -144,16 +146,40 @@
   letter-spacing: 0.02em;
   border-radius: 999px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  box-shadow: 0 10px 24px -15px rgba(46, 43, 38, 0.7);
+  transition: background 0.2s, transform 0.18s var(--ease-spring), box-shadow 0.25s ease;
+}
+
+/* 호버 시 빛이 한 번 스윽 지나가는 시머 */
+.start-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.22),
+    transparent
+  );
+  transform: translateX(-150%);
+  pointer-events: none;
 }
 
 .start-button:hover:not(:disabled) {
-  background: var(--charcoal-hover);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, var(--charcoal-hover), #46433a);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 32px -16px rgba(46, 43, 38, 0.7);
+}
+
+.start-button:hover:not(:disabled)::after {
+  animation: sheen 0.9s var(--ease-out);
 }
 
 .start-button:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(1px) scale(0.99);
 }
 
 .start-button:disabled {
@@ -304,5 +330,102 @@
 
   .analyzing-state {
     padding: 18px 14px 24px;
+  }
+}
+
+/* ── 진입 모션 & 다이내믹 디테일 ───────────────────────── */
+
+.page-header {
+  animation: fade-up 0.55s var(--ease-out) both;
+}
+
+.card {
+  animation: fade-up 0.6s var(--ease-out) 0.06s both;
+}
+
+/* 시작 화면 내부 요소 순차 등장 (위에서부터 또르륵) */
+.idle-state .hero-emoji {
+  animation: pop-in 0.6s var(--ease-spring) 0.16s both;
+}
+
+.idle-state .steps li {
+  animation: fade-up 0.5s var(--ease-out) both;
+}
+
+.idle-state .steps li:nth-child(1) {
+  animation-delay: 0.24s;
+}
+
+.idle-state .steps li:nth-child(2) {
+  animation-delay: 0.32s;
+}
+
+.idle-state .steps li:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.idle-state .start-button {
+  animation: fade-up 0.5s var(--ease-out) 0.48s both;
+}
+
+.idle-state .mode-switch {
+  animation: fade-up 0.5s var(--ease-out) 0.56s both;
+}
+
+/* 카운트다운 숫자: 잔잔한 호흡 */
+.count-num {
+  animation: count-breathe 1s var(--ease-soft) infinite;
+}
+
+@keyframes count-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+/* 분석 중 비디오 프레임: 부드러운 입체감 + 은은한 테두리 빛 */
+.analyzing-state .video-frame {
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 20px 44px -26px rgba(46, 43, 38, 0.5);
+  animation: frame-glow 3.2s ease-in-out infinite;
+}
+
+@keyframes frame-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 20px 44px -26px rgba(46, 43, 38, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(93, 141, 118, 0.5),
+      0 22px 48px -24px rgba(93, 141, 118, 0.35);
+  }
+}
+
+.status-line {
+  animation: fade-in 0.5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-header,
+  .card,
+  .idle-state .hero-emoji,
+  .idle-state .steps li,
+  .idle-state .start-button,
+  .idle-state .mode-switch,
+  .status-line {
+    animation: none;
+  }
+
+  .count-num,
+  .analyzing-state .video-frame {
+    animation: none;
   }
 }

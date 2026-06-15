@@ -5,6 +5,7 @@ import { heartRateService } from '../services/heartRate';
 import { tensionAnalysisService } from '../services/tensionAnalysis';
 import { computeSmileAuthenticity } from '../services/smileAnalysis';
 import { pickQuestions } from '../data/tensionQuestions';
+import { useCountUp } from '../hooks/useCountUp';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
 import PlayfulEmojis from './PlayfulEmojis';
@@ -96,6 +97,11 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const [tensionSummary, setTensionSummary] = useState<TensionSummary | null>(null);
   const [questionResults, setQuestionResults] = useState<QuestionResult[] | null>(null);
   const [smileResult, setSmileResult] = useState<SmileResult | null>(null);
+
+  // 결과 숫자 카운트업 연출 (값이 정해지면 0에서 또르륵 차오름)
+  const countedPeak = useCountUp(tensionSummary?.peak ?? 0);
+  const countedAvg = useCountUp(tensionSummary?.average ?? 0);
+  const countedSmile = useCountUp(smileResult?.authenticity ?? 0);
 
   const setPhase = (p: Phase) => {
     phaseRef.current = p;
@@ -279,8 +285,9 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const renderGauge = (tension: number, confidence: number) => {
     const info = BAND_INFO[bandOf(tension)];
     const low = confidence < 0.5;
+    const high = tension >= 66;
     return (
-      <div className={`tension-gauge${low ? ' is-low' : ''}`}>
+      <div className={`tension-gauge${low ? ' is-low' : ''}${high ? ' is-high' : ''}`}>
         <div className="tension-scale">
           <span>편안</span>
           <span>긴장</span>
@@ -392,7 +399,9 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
                 <div className="question-progress">
                   질문 {qProgress.index + 1} / {qProgress.total}
                 </div>
-                <p className="question-text">{currentQuestion}</p>
+                <p className="question-text" key={currentQuestion}>
+                  {currentQuestion}
+                </p>
                 {phase === 'qIntro' ? (
                   <div className="status-line">잠시 후 측정을 시작해요…</div>
                 ) : (
@@ -427,15 +436,15 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
         {phase === 'completed' && tensionSummary && (
           <div className="card tension-result">
             <ResultBand band={tensionSummary.band} />
-            {renderGauge(tensionSummary.peak, tensionSummary.confidence)}
+            {renderGauge(countedPeak, tensionSummary.confidence)}
             <div className="result-rows">
               <div className="result-row">
                 <span>최고 긴장</span>
-                <b>{tensionSummary.peak}</b>
+                <b>{countedPeak}</b>
               </div>
               <div className="result-row">
                 <span>평균 긴장</span>
-                <b>{tensionSummary.average}</b>
+                <b>{countedAvg}</b>
               </div>
               <div className="result-row">
                 <span>가장 큰 신호</span>
@@ -470,7 +479,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
               <div className="result-rows">
                 <div className="result-row">
                   <span>진짜 웃음 점수</span>
-                  <b>{smileResult.authenticity} / 100</b>
+                  <b>{countedSmile} / 100</b>
                 </div>
               </div>
             )}
@@ -522,6 +531,13 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
 
 function QuestionBars({ results }: { results: QuestionResult[] }) {
   const maxPeak = Math.max(1, ...results.map((r) => r.peak));
+  // 마운트 직후 0 → 실제값으로 막대가 스윽 차오르게
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setShown(true), 80);
+    return () => clearTimeout(id);
+  }, []);
+
   return (
     <div className="question-bars">
       {results.map((r, i) => {
@@ -533,7 +549,7 @@ function QuestionBars({ results }: { results: QuestionResult[] }) {
               {isTop && <span className="qbar-flag"> 🔥 가장 흔들림</span>}
             </p>
             <div className="qbar-track">
-              <div className="qbar-fill" style={{ width: `${r.peak}%` }} />
+              <div className="qbar-fill" style={{ width: shown ? `${r.peak}%` : '0%' }} />
             </div>
             <span className="qbar-value">{r.peak}</span>
           </div>

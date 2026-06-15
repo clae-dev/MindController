@@ -16,7 +16,54 @@
 
   --serif: 'Noto Serif KR', 'Pretendard Variable', Pretendard, serif;
 
+  /* 모션 토큰 — 손맛 나는 자연스러운 이징 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
   color-scheme: light;
+}
+
+/* 공통 진입 모션 — 아래에서 부드럽게 떠오르기 */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 빛이 흐르는 듯한 시머 (게이지/버튼 강조용) */
+@keyframes sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(220%);
+  }
 }
 
 * {
@@ -43,6 +90,13 @@ body {
 
 button {
   font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 키보드 포커스 링 — 마우스 클릭에는 안 보이고 탭 이동 때만 */
+:where(button, a, [tabindex]):focus-visible {
+  outline: 2.5px solid var(--sage);
+  outline-offset: 3px;
 }
 
 #root {
@@ -51,7 +105,13 @@ button {
 
 /* 하늘 + 풀밭 장면 (양쪽 화면 공통 배경) */
 .sky-scene {
-  background: linear-gradient(180deg, #b9ddf3 0%, #d9edf9 48%, #edf7fc 72%);
+  background:
+    radial-gradient(
+      120% 85% at 82% -12%,
+      rgba(255, 241, 204, 0.7),
+      rgba(255, 241, 204, 0) 46%
+    ),
+    linear-gradient(180deg, #b9ddf3 0%, #d9edf9 48%, #edf7fc 72%);
 }
 
 /* 풀밭: 완만한 언덕 곡선 */
