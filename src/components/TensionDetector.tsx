@@ -3,7 +3,7 @@ import type { FaceFrame, TensionSummary, QuestionResult, SmileResult, TensionBre
 import { faceDetectionService } from '../services/faceDetection';
 import { heartRateService } from '../services/heartRate';
 import { tensionAnalysisService } from '../services/tensionAnalysis';
-import { computeSmileAuthenticity } from '../services/smileAnalysis';
+import { computeSmileAuthenticity, meanEyeEngage } from '../services/smileAnalysis';
 import { pickQuestions } from '../data/tensionQuestions';
 import { useCountUp } from '../hooks/useCountUp';
 import AnimatedEmoji from './AnimatedEmoji';
@@ -23,12 +23,14 @@ type Phase =
   | 'live'
   | 'qIntro'
   | 'qCapture'
+  | 'smileBaseline'
   | 'smileCapture'
   | 'completed'
   | 'error';
 
 const DETECTION_INTERVAL = 100; // ms
 const BASELINE_SEC = 4;
+const SMILE_BASELINE_SEC = 1.5; // 웃기 직전 무표정 기준선
 const SMILE_SEC = 4;
 const Q_INTRO_SEC = 1.6;
 const Q_CAPTURE_SEC = 3.4;
@@ -86,6 +88,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const qIndexRef = useRef(0);
   const qResultsRef = useRef<QuestionResult[]>([]);
   const smileFramesRef = useRef<FaceFrame[]>([]);
+  const smileBaselineFramesRef = useRef<FaceFrame[]>([]);
 
   // 렌더링용 state
   const [phase, setPhaseState] = useState<Phase>('menu');
@@ -151,7 +154,8 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const finishSmile = () => {
     runningRef.current = false;
     if (detectLoopRef.current) clearTimeout(detectLoopRef.current);
-    setSmileResult(computeSmileAuthenticity(smileFramesRef.current));
+    const baseEye = meanEyeEngage(smileBaselineFramesRef.current);
+    setSmileResult(computeSmileAuthenticity(smileFramesRef.current, baseEye));
     stopStream();
     setPhase('completed');
   };
@@ -169,7 +173,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
     switch (phaseRef.current) {
       case 'detecting':
         // 얼굴이 잡히면 시작
-        if (subModeRef.current === 'smile') setPhase('smileCapture');
+        if (subModeRef.current === 'smile') setPhase('smileBaseline');
         else setPhase('baseline');
         break;
 
@@ -207,6 +211,13 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
         break;
       }
 
+      case 'smileBaseline':
+        // 무표정 기준선: 흔들린 프레임은 제외하고 수집
+        if (frame.headMotion < 0.02) smileBaselineFramesRef.current.push(frame);
+        setCountdown(Math.max(0, Math.ceil(SMILE_BASELINE_SEC - elapsed)));
+        if (elapsed >= SMILE_BASELINE_SEC) setPhase('smileCapture');
+        break;
+
       case 'smileCapture':
         smileFramesRef.current.push(frame);
         setCountdown(Math.max(0, Math.ceil(SMILE_SEC - elapsed)));
@@ -224,6 +235,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
       qIndexRef.current = 0;
       qResultsRef.current = [];
       smileFramesRef.current = [];
+      smileBaselineFramesRef.current = [];
       setTensionSummary(null);
       setQuestionResults(null);
       setSmileResult(null);
@@ -280,6 +292,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
     phase === 'live' ||
     phase === 'qIntro' ||
     phase === 'qCapture' ||
+    phase === 'smileBaseline' ||
     phase === 'smileCapture';
 
   const renderGauge = (tension: number, confidence: number) => {
@@ -412,6 +425,18 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
                     </div>
                   </>
                 )}
+              </>
+            )}
+
+            {phase === 'smileBaseline' && (
+              <>
+                <div className="countdown">
+                  <span className="count-num">{countdown}</span>초
+                </div>
+                <div className="status-line">
+                  <AnimatedEmoji emoji="😐" size={22} label="무표정" />
+                  무표정으로 잠깐 계세요 (평소 표정을 익혀요)
+                </div>
               </>
             )}
 

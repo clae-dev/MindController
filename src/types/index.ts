@@ -96,6 +96,9 @@ export interface QuestionResult {
 export interface SmileResult {
   authenticity: number; // 0~100 (진짜 웃음일수록 높음)
   verdict: 'genuine' | 'forced' | 'faint'; // 진짜 / 억지 / 미소 약함
-  smile: number; // 최고 미소 강도 (0~1)
-  cheekSquint: number; // 동반된 눈가 근육 (0~1)
+  smile: number; // peak 구간 평균 미소 강도 (0~1)
+  cheekSquint: number; // 동반된 볼 근육 (0~1, 보고용)
+  eyeEngage: number; // peak 구간 평균 눈가 engagement (0~1)
+  baseEye?: number; // 측정된 중립 baseline 눈가 engagement (있으면)
+  lowConfidence?: boolean; // 모션으로 대부분 프레임이 버려졌을 때
 }
