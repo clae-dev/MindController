@@ -486,8 +486,9 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
             <h2 className="result-title">질문별 긴장 반응</h2>
             <QuestionBars results={questionResults} />
             <p className="disclaimer">
-              가장 막대가 높은 질문에서 가장 긴장했다는 뜻이에요. 거짓말 여부와는 무관한 재미용
-              결과랍니다.
+              가장 막대가 높은 질문에서 가장 긴장했다는 뜻이에요.
+              <br />
+              거짓말 여부와는 무관한 재미용 결과랍니다.
             </p>
             <ResultFooter onAgain={() => setPhase('menu')} onBack={onBack} />
           </div>
