@@ -95,6 +95,9 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(BASELINE_SEC);
   const [live, setLive] = useState({ tension: 0, confidence: 1 });
+  // 게이지는 tension(정수)과 confidence<0.5 여부만 반영하므로, 이 둘이 바뀔 때만
+  // setLive 해서 10fps 전체 트리 리렌더를 줄인다 (pushFrame 자체는 매 프레임 호출됨)
+  const lastLiveRef = useRef({ tension: -1, low: false });
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [qProgress, setQProgress] = useState({ index: 0, total: 0 });
   const [tensionSummary, setTensionSummary] = useState<TensionSummary | null>(null);
@@ -167,6 +170,16 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
     setPhase('qIntro');
   };
 
+  // pushFrame은 항상 호출(세션 누산기 갱신)하되, 게이지 표시값이 바뀐 경우에만 setLive
+  const pushLive = (frame: FaceFrame, now: number) => {
+    const next = tensionAnalysisService.pushFrame(frame, now);
+    const low = next.confidence < 0.5;
+    if (next.tension !== lastLiveRef.current.tension || low !== lastLiveRef.current.low) {
+      lastLiveRef.current = { tension: next.tension, low };
+      setLive(next);
+    }
+  };
+
   const handleFrame = (frame: FaceFrame, now: number) => {
     const elapsed = (now - phaseStartRef.current) / 1000;
 
@@ -188,7 +201,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
         break;
 
       case 'live':
-        setLive(tensionAnalysisService.pushFrame(frame, now));
+        pushLive(frame, now);
         break;
 
       case 'qIntro':
@@ -200,7 +213,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
         break;
 
       case 'qCapture': {
-        setLive(tensionAnalysisService.pushFrame(frame, now));
+        pushLive(frame, now);
         setCountdown(Math.max(0, Math.ceil(Q_CAPTURE_SEC - elapsed)));
         if (elapsed >= Q_CAPTURE_SEC) {
           qResultsRef.current.push(tensionAnalysisService.endSegment());
@@ -240,12 +253,15 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
       setQuestionResults(null);
       setSmileResult(null);
       setLive({ tension: 0, confidence: 1 });
+      lastLiveRef.current = { tension: -1, low: false };
       if (mode === 'question') questionsRef.current = pickQuestions(QUESTION_COUNT);
 
       setPhase('detecting');
 
+      // 표시는 CSS로 확대하고, 캡처는 추론·캔버스 비용을 줄이려 낮춤
+      // (얼굴 랜드마크는 내부적으로 더 낮은 해상도로 처리돼 정확도 영향 거의 없음)
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 960 } },
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
       });
       streamRef.current = stream;
       if (videoRef.current) {

@@ -94,9 +94,10 @@ export default function StressAnalyzer() {
       setTimeRemaining(ANALYSIS_DURATION);
       heartRateService.reset();
 
-      // 1. 웹캠 접근 (카메라만 사용) — 크게 표시되므로 높은 해상도를 우선 요청
+      // 1. 웹캠 접근 (카메라만 사용) — 표시는 CSS로 확대하고, 캡처는 추론·캔버스 비용을
+      //    줄이려 낮춤. 얼굴 랜드마크는 내부적으로 더 낮은 해상도로 처리돼 정확도 영향 거의 없음
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 960 } },
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
       });
 
       if (videoRef.current) {
