@@ -124,13 +124,8 @@ export class FaceDetectionService {
         return null;
       }
 
-      // 정규화 좌표(0~1) → 픽셀 좌표 변환
-      const points: Point[] = normalized.map((p) => ({
-        x: p.x * this.canvas!.width,
-        y: p.y * this.canvas!.height,
-      }));
-
-      this.drawLandmarks(ctx, points);
+      // 드로잉은 정규화 좌표에서 인라인 변환 — 매 프레임 478개 Point 객체 할당을 피함
+      this.drawLandmarks(ctx, normalized, this.canvas.width, this.canvas.height);
 
       // 코끝(랜드마크 1) 정규화 좌표 → 시선/머리 위치 + 직전 대비 이동량
       const nose = normalized[1] ?? normalized[4] ?? { x: 0.5, y: 0.5 };
@@ -160,6 +155,11 @@ export class FaceDetectionService {
       }
 
       // 폴백: 블렌드셰이프가 없으면 감정만 추정하고 긴장 신호는 0
+      // (드문 경로이므로 여기서만 픽셀 좌표를 할당)
+      const points: Point[] = normalized.map((p) => ({
+        x: p.x * this.canvas!.width,
+        y: p.y * this.canvas!.height,
+      }));
       return {
         emotions: this.calculateEmotionFromLandmarks(points),
         browDown: 0,
@@ -180,13 +180,21 @@ export class FaceDetectionService {
     }
   }
 
-  private drawLandmarks(ctx: CanvasRenderingContext2D, landmarks: Point[]): void {
+  private drawLandmarks(
+    ctx: CanvasRenderingContext2D,
+    landmarks: Array<{ x: number; y: number }>,
+    w: number,
+    h: number
+  ): void {
     // 점 그리기 — 478개를 한 패스로 모아 한 번에 fill (개별 fill 대비 그리기 비용 감소)
+    // 정규화 좌표(0~1)를 그릴 때 픽셀로 인라인 변환 (중간 배열 할당 없음)
     ctx.fillStyle = '#00FF00';
     ctx.beginPath();
     for (const landmark of landmarks) {
-      ctx.moveTo(landmark.x + 2, landmark.y);
-      ctx.arc(landmark.x, landmark.y, 2, 0, 2 * Math.PI);
+      const x = landmark.x * w;
+      const y = landmark.y * h;
+      ctx.moveTo(x + 2, y);
+      ctx.arc(x, y, 2, 0, 2 * Math.PI);
     }
     ctx.fill();
 
@@ -213,8 +221,8 @@ export class FaceDetectionService {
       const start = landmarks[connection[0]];
       const end = landmarks[connection[1]];
       if (start && end) {
-        ctx.moveTo(start.x, start.y);
-        ctx.lineTo(end.x, end.y);
+        ctx.moveTo(start.x * w, start.y * h);
+        ctx.lineTo(end.x * w, end.y * h);
       }
     }
     ctx.stroke();

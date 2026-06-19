@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { FaceFrame, TensionSummary, QuestionResult, SmileResult, TensionBreakdown } from '../types/index';
 import { faceDetectionService } from '../services/faceDetection';
 import { heartRateService } from '../services/heartRate';
@@ -94,10 +94,9 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const [phase, setPhaseState] = useState<Phase>('menu');
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(BASELINE_SEC);
-  const [live, setLive] = useState({ tension: 0, confidence: 1 });
-  // 게이지는 tension(정수)과 confidence<0.5 여부만 반영하므로, 이 둘이 바뀔 때만
-  // setLive 해서 10fps 전체 트리 리렌더를 줄인다 (pushFrame 자체는 매 프레임 호출됨)
-  const lastLiveRef = useRef({ tension: -1, low: false });
+  // 라이브 게이지는 imperative 핸들로만 갱신해 10fps 동안 부모(헤더·영상·버튼)
+  // 재조정을 건너뛴다. 변화 게이팅은 LiveGauge 내부 setVal 비교에서 처리.
+  const gaugeRef = useRef<LiveGaugeHandle>(null);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [qProgress, setQProgress] = useState({ index: 0, total: 0 });
   const [tensionSummary, setTensionSummary] = useState<TensionSummary | null>(null);
@@ -170,14 +169,10 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
     setPhase('qIntro');
   };
 
-  // pushFrame은 항상 호출(세션 누산기 갱신)하되, 게이지 표시값이 바뀐 경우에만 setLive
+  // pushFrame은 항상 호출(세션 누산기 갱신)하되, 표시 갱신은 게이지 컴포넌트에 위임
   const pushLive = (frame: FaceFrame, now: number) => {
     const next = tensionAnalysisService.pushFrame(frame, now);
-    const low = next.confidence < 0.5;
-    if (next.tension !== lastLiveRef.current.tension || low !== lastLiveRef.current.low) {
-      lastLiveRef.current = { tension: next.tension, low };
-      setLive(next);
-    }
+    gaugeRef.current?.set(next.tension, next.confidence);
   };
 
   const handleFrame = (frame: FaceFrame, now: number) => {
@@ -252,8 +247,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
       setTensionSummary(null);
       setQuestionResults(null);
       setSmileResult(null);
-      setLive({ tension: 0, confidence: 1 });
-      lastLiveRef.current = { tension: -1, low: false };
+      gaugeRef.current?.set(0, 1);
       if (mode === 'question') questionsRef.current = pickQuestions(QUESTION_COUNT);
 
       setPhase('detecting');
@@ -310,31 +304,6 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
     phase === 'qCapture' ||
     phase === 'smileBaseline' ||
     phase === 'smileCapture';
-
-  const renderGauge = (tension: number, confidence: number) => {
-    const info = BAND_INFO[bandOf(tension)];
-    const low = confidence < 0.5;
-    const high = tension >= 66;
-    return (
-      <div className={`tension-gauge${low ? ' is-low' : ''}${high ? ' is-high' : ''}`}>
-        <div className="tension-scale">
-          <span>편안</span>
-          <span>긴장</span>
-        </div>
-        <div className="tension-track">
-          <div className="tension-fill" style={{ width: `${tension}%` }} />
-        </div>
-        <div className="tension-readout">
-          <AnimatedEmoji emoji={info.emoji} size={24} />
-          <b style={{ color: info.color }}>{tension}</b>
-          <span>/ 100</span>
-        </div>
-        {low && (
-          <p className="tension-lowsignal">신호가 약해요. 잠시 가만히 카메라를 바라봐 주세요</p>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="stress-analyzer sky-scene">
@@ -418,7 +387,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
 
             {phase === 'live' && (
               <>
-                {renderGauge(live.tension, live.confidence)}
+                <LiveGauge ref={gaugeRef} />
                 <div className="status-line">자유롭게 말하거나 가만히 있어 보세요</div>
               </>
             )}
@@ -435,7 +404,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
                   <div className="status-line">잠시 후 측정을 시작해요…</div>
                 ) : (
                   <>
-                    {renderGauge(live.tension, live.confidence)}
+                    <LiveGauge ref={gaugeRef} />
                     <div className="status-line">
                       <span className="count-num small">{countdown}</span>초 동안 답해보세요
                     </div>
@@ -477,7 +446,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
         {phase === 'completed' && tensionSummary && (
           <div className="card tension-result">
             <ResultBand band={tensionSummary.band} />
-            {renderGauge(countedPeak, tensionSummary.confidence)}
+            <GaugeView tension={countedPeak} confidence={tensionSummary.confidence} />
             <div className="result-rows">
               <div className="result-row">
                 <span>최고 긴장</span>
@@ -547,6 +516,55 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
     </div>
   );
 }
+
+// 긴장 게이지 표시 (정적 결과·라이브 공용). 모듈 레벨이라 렌더마다 재생성되지 않음
+function GaugeView({ tension, confidence }: { tension: number; confidence: number }) {
+  const info = BAND_INFO[bandOf(tension)];
+  const low = confidence < 0.5;
+  const high = tension >= 66;
+  return (
+    <div className={`tension-gauge${low ? ' is-low' : ''}${high ? ' is-high' : ''}`}>
+      <div className="tension-scale">
+        <span>편안</span>
+        <span>긴장</span>
+      </div>
+      <div className="tension-track">
+        <div className="tension-fill" style={{ width: `${tension}%` }} />
+      </div>
+      <div className="tension-readout">
+        <AnimatedEmoji emoji={info.emoji} size={24} />
+        <b style={{ color: info.color }}>{tension}</b>
+        <span>/ 100</span>
+      </div>
+      {low && (
+        <p className="tension-lowsignal">신호가 약해요. 잠시 가만히 카메라를 바라봐 주세요</p>
+      )}
+    </div>
+  );
+}
+
+export interface LiveGaugeHandle {
+  set: (tension: number, confidence: number) => void;
+}
+
+// 라이브 측정용 게이지: 자체 state를 가져 부모 리렌더와 분리된다. set()으로 값을 밀어넣고,
+// 게이지가 실제로 쓰는 값(tension 정수 + confidence<0.5 여부)이 바뀐 경우에만 리렌더한다.
+const LiveGauge = forwardRef<LiveGaugeHandle>(function LiveGauge(_props, ref) {
+  const [val, setVal] = useState({ tension: 0, confidence: 1 });
+  useImperativeHandle(
+    ref,
+    () => ({
+      set: (tension: number, confidence: number) =>
+        setVal((prev) =>
+          prev.tension === tension && (prev.confidence < 0.5) === (confidence < 0.5)
+            ? prev
+            : { tension, confidence }
+        ),
+    }),
+    []
+  );
+  return <GaugeView tension={val.tension} confidence={val.confidence} />;
+});
 
 function ResultBand({ band }: { band: TensionSummary['band'] }) {
   const info = BAND_INFO[band];
