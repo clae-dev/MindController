@@ -7,6 +7,8 @@ interface AnimatedEmojiProps {
   label?: string;
   /** true면 애니메이션을 멈춰 메인 스레드를 양보 (분석 중 추론에 자원 집중) */
   paused?: boolean;
+  /** false면 Lottie를 아예 로드하지 않고 정적 이모지로 렌더 (대기 화면 동시 플레이어 수 감소). 래퍼의 CSS 모션은 유지됨 */
+  animated?: boolean;
 }
 
 // 이모지 문자열 → Noto Animated Emoji URL 코드포인트 (fe0f 포함, '_' 연결)
@@ -40,7 +42,13 @@ const prefersReducedMotion = () =>
  * 첫 화면 다운로드를 약 10MB → 1MB대로 줄인다.
  * 세트에 없는 이모지는 일반 텍스트 이모지로 폴백.
  */
-export default function AnimatedEmoji({ emoji, size = 28, label, paused = false }: AnimatedEmojiProps) {
+export default function AnimatedEmoji({
+  emoji,
+  size = 28,
+  label,
+  paused = false,
+  animated = true,
+}: AnimatedEmojiProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
   const animationRef = useRef<ReturnType<typeof lottie.loadAnimation> | null>(null);
   // 비동기 로드 완료 시점에 최신 paused 값을 읽기 위한 ref (초기값은 마운트 시점 paused)
@@ -51,7 +59,7 @@ export default function AnimatedEmoji({ emoji, size = 28, label, paused = false 
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (failed || !containerRef.current) return;
+    if (!animated || failed || !containerRef.current) return;
 
     const url = `https://fonts.gstatic.com/s/e/notoemoji/latest/${toCodepoint(emoji)}/lottie.json`;
     let cancelled = false;
@@ -76,7 +84,7 @@ export default function AnimatedEmoji({ emoji, size = 28, label, paused = false 
       animationRef.current?.destroy();
       animationRef.current = null;
     };
-  }, [emoji, failed]);
+  }, [emoji, failed, animated]);
 
   // paused 토글에 반응 (reduced-motion이면 재생하지 않음)
   useEffect(() => {
@@ -86,7 +94,8 @@ export default function AnimatedEmoji({ emoji, size = 28, label, paused = false 
     else if (!prefersReducedMotion()) anim.play();
   }, [paused]);
 
-  if (failed) {
+  // Lottie 실패했거나 정적 모드면 텍스트 이모지로 렌더 (Lottie 플레이어 미생성)
+  if (failed || !animated) {
     return (
       <span
         role="img"
