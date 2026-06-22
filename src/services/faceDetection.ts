@@ -1,5 +1,5 @@
 import type { EmotionScores, FaceFrame } from '../types/index';
-import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import type { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { heartRateService } from './heartRate';
 import { buildFrame, getPrimaryEmotion, type Point, type Rgb } from './faceLandmarkerCore';
 
@@ -152,10 +152,11 @@ class MainBackend implements Backend {
   private lastGaze: Point | null = null;
 
   private createLandmarker(
+    FaceLandmarkerCls: typeof FaceLandmarker,
     fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>,
     delegate: 'GPU' | 'CPU'
   ): Promise<FaceLandmarker> {
-    return FaceLandmarker.createFromOptions(fileset, {
+    return FaceLandmarkerCls.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: '/models/face_landmarker.task', delegate },
       runningMode: 'VIDEO',
       numFaces: 1,
@@ -178,12 +179,15 @@ class MainBackend implements Backend {
   }
 
   async load(): Promise<void> {
+    // 메인 스레드 폴백 경로에서만 MediaPipe를 동적 로드한다 — 워커가 지원되는
+    // 일반 브라우저에선 이 무거운 래퍼가 메인 번들에 포함되지 않는다.
+    const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
     const fileset = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
     try {
-      this.landmarker = await this.createLandmarker(fileset, 'GPU');
+      this.landmarker = await this.createLandmarker(FaceLandmarker, fileset, 'GPU');
     } catch (error) {
       console.warn('GPU delegate failed, falling back to CPU:', error);
-      this.landmarker = await this.createLandmarker(fileset, 'CPU');
+      this.landmarker = await this.createLandmarker(FaceLandmarker, fileset, 'CPU');
     }
     await this.warmup();
   }
