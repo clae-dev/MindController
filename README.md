@@ -82,7 +82,6 @@ src/
 │   └── populationCalibration.ts  # 분포 기반 자동 보정 (Welford 통계)
 ├── data/tensionQuestions.ts      # 질문 챌린지 문항 풀
 ├── hooks/useCountUp.ts           # 결과 숫자 카운트업 애니메이션
-├── utils/shareCard.ts            # 결과 공유 카드 생성 유틸
 ├── types/index.ts                # 공용 타입
 └── styles/                       # 화면별 CSS (토큰은 index.css)
 
