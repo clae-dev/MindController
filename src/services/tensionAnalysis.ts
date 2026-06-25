@@ -69,14 +69,12 @@ function emotionVec(f: FaceFrame): number[] {
   return [e.happy, e.sad, e.angry, e.surprised, e.disgusted, e.fearful].map((v) => v / 100);
 }
 
-function mean(arr: number[]): number {
-  return arr.length ? arr.reduce((a, v) => a + v, 0) / arr.length : 0;
-}
-
-function variance(arr: number[]): number {
-  if (arr.length < 2) return 0;
-  const m = mean(arr);
-  return mean(arr.map((v) => (v - m) * (v - m)));
+// 표정 긴장 평균 — 중간 배열 할당 없이 단일 패스로 누산
+function facialMean(records: FrameRecord[]): number {
+  if (!records.length) return 0;
+  let sum = 0;
+  for (let i = 0; i < records.length; i++) sum += records[i].facial;
+  return sum / records.length;
 }
 
 // 연속 프레임 감정 벡터 간 L1 거리 평균 → 미세표정 불안정성
@@ -104,8 +102,25 @@ function blinkRateOf(records: FrameRecord[]): number {
   return durSec > 0 ? edges / durSec : 0;
 }
 
+// 코끝 위치 분산 합(gazeX + gazeY) — 합/제곱합 단일 패스로 중간 배열 회피
 function gazeVarOf(records: FrameRecord[]): number {
-  return variance(records.map((r) => r.gazeX)) + variance(records.map((r) => r.gazeY));
+  const n = records.length;
+  if (n < 2) return 0;
+  let sumX = 0;
+  let sumY = 0;
+  let sumXX = 0;
+  let sumYY = 0;
+  for (let i = 0; i < n; i++) {
+    const x = records[i].gazeX;
+    const y = records[i].gazeY;
+    sumX += x;
+    sumY += y;
+    sumXX += x * x;
+    sumYY += y * y;
+  }
+  const varX = sumXX / n - (sumX / n) ** 2;
+  const varY = sumYY / n - (sumY / n) ** 2;
+  return Math.max(0, varX) + Math.max(0, varY);
 }
 
 class TensionAnalysisService {
@@ -172,7 +187,7 @@ class TensionAnalysisService {
     const recs = this.baselineRecords;
     const hr = heartRateService.estimate();
     this.baseline = {
-      facial: mean(recs.map((r) => r.facial)),
+      facial: facialMean(recs),
       blinkRate: blinkRateOf(recs),
       gazeVar: gazeVarOf(recs),
       instability: instabilityOf(recs),
@@ -203,7 +218,7 @@ class TensionAnalysisService {
     }
 
     // 윈도 기반 현재 지표
-    const facialNow = mean(this.window.map((r) => r.facial));
+    const facialNow = facialMean(this.window);
     const instabilityNow = instabilityOf(this.window);
     const blinkRateNow = blinkRateOf(this.window);
     const gazeVarNow = gazeVarOf(this.window);
