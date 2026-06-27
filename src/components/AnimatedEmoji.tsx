@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import lottie from 'lottie-web/build/player/lottie_light';
+import type { AnimationItem } from 'lottie-web';
+
+// lottie-web(약 50KB gzip)은 메인 번들에서 분리해, 애니메이션 이모지가 실제로
+// 마운트될 때만 동적 로드한다. 로드 전/실패 시엔 텍스트 이모지로 폴백된다.
+const loadLottie = () =>
+  import('lottie-web/build/player/lottie_light').then((m) => m.default);
 
 interface AnimatedEmojiProps {
   emoji: string;
@@ -50,7 +55,7 @@ export default function AnimatedEmoji({
   animated = true,
 }: AnimatedEmojiProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
-  const animationRef = useRef<ReturnType<typeof lottie.loadAnimation> | null>(null);
+  const animationRef = useRef<AnimationItem | null>(null);
   // 비동기 로드 완료 시점에 최신 paused 값을 읽기 위한 ref (초기값은 마운트 시점 paused)
   const pausedRef = useRef(paused);
   useEffect(() => {
@@ -64,8 +69,8 @@ export default function AnimatedEmoji({
     const url = `https://fonts.gstatic.com/s/e/notoemoji/latest/${toCodepoint(emoji)}/lottie.json`;
     let cancelled = false;
 
-    loadLottieData(url)
-      .then((data) => {
+    Promise.all([loadLottie(), loadLottieData(url)])
+      .then(([lottie, data]) => {
         if (cancelled || !containerRef.current) return;
         animationRef.current = lottie.loadAnimation({
           container: containerRef.current,
