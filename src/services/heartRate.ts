@@ -72,11 +72,19 @@ class HeartRateService {
     for (let f = minHz; f <= maxHz; f += step) {
       let re = 0;
       let im = 0;
-      const w = 2 * Math.PI * f;
+      // 빈 주파수가 고정이면 샘플당 위상은 일정량씩 증가하므로, 매 샘플 sin/cos를
+      // 호출하는 대신 단위 페이저를 회전시킨다 (삼각함수 호출: 샘플당 2회 → 빈당 2회).
+      const dPhase = (2 * Math.PI * f) / fs;
+      const cd = Math.cos(dPhase);
+      const sd = Math.sin(dPhase);
+      let cosA = 1;
+      let sinA = 0;
       for (let i = 0; i < n; i++) {
-        const t = i / fs;
-        re += windowed[i] * Math.cos(w * t);
-        im -= windowed[i] * Math.sin(w * t);
+        re += windowed[i] * cosA;
+        im -= windowed[i] * sinA;
+        const nextCos = cosA * cd - sinA * sd;
+        sinA = sinA * cd + cosA * sd;
+        cosA = nextCos;
       }
       const power = re * re + im * im;
       sumPower += power;

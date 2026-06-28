@@ -51,12 +51,18 @@ const CONNECTIONS: ReadonlyArray<readonly [number, number]> = [
   [84, 181], [181, 91], [91, 106],
 ];
 
+// 오버레이가 실제로 쓰는 정점만 (CONNECTIONS에 등장하는 ~60개). 점 패스를 FaceMesh
+// 478점 전체가 아니라 이 부분집합으로 그려 매 프레임 arc 비용을 ~8배 줄인다.
+const CONNECTION_VERTICES: readonly number[] = [...new Set(CONNECTIONS.flat())];
+
 // 랜드마크 점·연결선 그리기 (정규화 좌표 → 픽셀 인라인 변환, 중간 배열 할당 없음)
 export function drawLandmarks(ctx: Ctx2D, landmarks: NormPt[], w: number, h: number): void {
-  // 점 — 한 패스로 모아 한 번에 fill
+  // 점 — 한 패스로 모아 한 번에 fill (연결선에 쓰이는 정점만)
   ctx.fillStyle = '#00FF00';
   ctx.beginPath();
-  for (const landmark of landmarks) {
+  for (const idx of CONNECTION_VERTICES) {
+    const landmark = landmarks[idx];
+    if (!landmark) continue;
     const x = landmark.x * w;
     const y = landmark.y * h;
     ctx.moveTo(x + 2, y);

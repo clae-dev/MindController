@@ -94,6 +94,15 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const [phase, setPhaseState] = useState<Phase>('menu');
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(BASELINE_SEC);
+  // 카운트다운은 초당 한 번만 바뀌므로, 정수 초가 바뀔 때만 setState해 매 프레임(10fps)
+  // 불필요한 리렌더를 막는다 (live 단계는 이미 imperative 게이지로 분리돼 있음)
+  const lastCountdownRef = useRef(BASELINE_SEC);
+  const updateCountdown = (sec: number) => {
+    if (sec !== lastCountdownRef.current) {
+      lastCountdownRef.current = sec;
+      setCountdown(sec);
+    }
+  };
   // 라이브 게이지는 imperative 핸들로만 갱신해 10fps 동안 부모(헤더·영상·버튼)
   // 재조정을 건너뛴다. 변화 게이팅은 LiveGauge 내부 setVal 비교에서 처리.
   const gaugeRef = useRef<LiveGaugeHandle>(null);
@@ -187,7 +196,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
 
       case 'baseline':
         tensionAnalysisService.recordBaselineFrame(frame, now);
-        setCountdown(Math.max(0, Math.ceil(BASELINE_SEC - elapsed)));
+        updateCountdown(Math.max(0, Math.ceil(BASELINE_SEC - elapsed)));
         if (elapsed >= BASELINE_SEC) {
           tensionAnalysisService.finalizeBaseline();
           if (subModeRef.current === 'question') beginQuestion(0);
@@ -200,7 +209,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
         break;
 
       case 'qIntro':
-        setCountdown(Math.max(0, Math.ceil(Q_INTRO_SEC - elapsed)));
+        updateCountdown(Math.max(0, Math.ceil(Q_INTRO_SEC - elapsed)));
         if (elapsed >= Q_INTRO_SEC) {
           tensionAnalysisService.beginSegment(questionsRef.current[qIndexRef.current]);
           setPhase('qCapture');
@@ -209,7 +218,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
 
       case 'qCapture': {
         pushLive(frame, now);
-        setCountdown(Math.max(0, Math.ceil(Q_CAPTURE_SEC - elapsed)));
+        updateCountdown(Math.max(0, Math.ceil(Q_CAPTURE_SEC - elapsed)));
         if (elapsed >= Q_CAPTURE_SEC) {
           qResultsRef.current.push(tensionAnalysisService.endSegment());
           const next = qIndexRef.current + 1;
@@ -222,13 +231,13 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
       case 'smileBaseline':
         // 무표정 기준선: 흔들린 프레임은 제외하고 수집
         if (frame.headMotion < 0.02) smileBaselineFramesRef.current.push(frame);
-        setCountdown(Math.max(0, Math.ceil(SMILE_BASELINE_SEC - elapsed)));
+        updateCountdown(Math.max(0, Math.ceil(SMILE_BASELINE_SEC - elapsed)));
         if (elapsed >= SMILE_BASELINE_SEC) setPhase('smileCapture');
         break;
 
       case 'smileCapture':
         smileFramesRef.current.push(frame);
-        setCountdown(Math.max(0, Math.ceil(SMILE_SEC - elapsed)));
+        updateCountdown(Math.max(0, Math.ceil(SMILE_SEC - elapsed)));
         if (elapsed >= SMILE_SEC) finishSmile();
         break;
     }
