@@ -64,9 +64,17 @@ function facialTension(f: FaceFrame): number {
 }
 
 // 불안정성 계산용 감정 벡터 (neutral 제외, 0~1 스케일)
+// 매 프레임 호출되므로 리터럴+map 2회 할당 대신 단일 배열 리터럴로 한 번만 할당
 function emotionVec(f: FaceFrame): number[] {
   const e = f.emotions;
-  return [e.happy, e.sad, e.angry, e.surprised, e.disgusted, e.fearful].map((v) => v / 100);
+  return [
+    e.happy / 100,
+    e.sad / 100,
+    e.angry / 100,
+    e.surprised / 100,
+    e.disgusted / 100,
+    e.fearful / 100,
+  ];
 }
 
 // 표정 긴장 평균 — 중간 배열 할당 없이 단일 패스로 누산
@@ -255,7 +263,11 @@ class TensionAnalysisService {
     const tension = Math.round(this.ema);
 
     // 신뢰도: 최근 윈도의 저품질(움직임 큰) 프레임 비율
-    const lowQ = this.window.filter((r) => r.lowQuality).length;
+    // 매 프레임 호출이라 filter로 임시 배열을 만들지 않고 카운트만 누적
+    let lowQ = 0;
+    for (let i = 0; i < this.window.length; i++) {
+      if (this.window[i].lowQuality) lowQ += 1;
+    }
     const confidence = clamp01(1 - lowQ / Math.max(1, this.window.length));
 
     // 세션 누산기 갱신
