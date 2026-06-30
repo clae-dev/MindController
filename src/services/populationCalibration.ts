@@ -16,7 +16,7 @@ interface RunningStat {
 interface CalibrationStats {
   count: number;
   stress: RunningStat;
-  emotions: Record<keyof EmotionScores, RunningStat>;
+  emotions: Record<keyof EmotionScores, RunningStat>;    
 }
 
 const STORAGE_KEY = 'mc-population-stats-v1';
