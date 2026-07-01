@@ -85,57 +85,61 @@ export function drawLandmarks(ctx: Ctx2D, landmarks: NormPt[], w: number, h: num
   ctx.stroke();
 }
 
-// 블렌드셰이프 카테고리 배열 → 이름→점수 Map (감정·긴장 계산에서 공유)
+// 블렌드셰이프 카테고리 배열 → 이름→점수 Map (감정·긴장 계산에서 공유).
+// 프레임마다 새 Map을 만들지 않고 모듈 단일 인스턴스를 비우고 채운다.
+// (buildFrame은 스레드 내 동기 실행이며 반환 전에 이 Map을 모두 소비한다)
+const sharedShape = new Map<string, number>();
 function blendshapeMap(categories: Array<{ categoryName: string; score: number }>): Map<string, number> {
-  const shape = new Map<string, number>();
-  for (const c of categories) shape.set(c.categoryName, c.score);
-  return shape;
+  sharedShape.clear();
+  for (const c of categories) sharedShape.set(c.categoryName, c.score);
+  return sharedShape;
 }
+
+// 블렌드셰이프 조회 헬퍼 — 프레임마다 클로저를 새로 만들지 않도록 모듈 스코프에 둔다
+const shapeGet = (shape: Map<string, number>, name: string): number => shape.get(name) ?? 0;
+const shapePair = (shape: Map<string, number>, base: string): number =>
+  (shapeGet(shape, `${base}Left`) + shapeGet(shape, `${base}Right`)) / 2;
+
+const clamp100 = (v: number): number => Math.min(100, Math.max(0, v));
 
 // 긴장 감지·웃음 판별에 쓰는 블렌드셰이프 부분집합 (0~1)
 function extractTensionSignals(
   shape: Map<string, number>
 ): Omit<FaceFrame, 'emotions' | 'gazeX' | 'gazeY' | 'headMotion'> {
-  const s = (name: string) => shape.get(name) ?? 0;
-  const pair = (base: string) => (s(`${base}Left`) + s(`${base}Right`)) / 2;
   return {
-    browDown: pair('browDown'),
-    mouthPress: pair('mouthPress'),
-    noseSneer: pair('noseSneer'),
-    eyeSquint: pair('eyeSquint'),
-    mouthStretch: pair('mouthStretch'),
-    smile: pair('mouthSmile'),
-    cheekSquint: pair('cheekSquint'),
-    blink: pair('eyeBlink'),
+    browDown: shapePair(shape, 'browDown'),
+    mouthPress: shapePair(shape, 'mouthPress'),
+    noseSneer: shapePair(shape, 'noseSneer'),
+    eyeSquint: shapePair(shape, 'eyeSquint'),
+    mouthStretch: shapePair(shape, 'mouthStretch'),
+    smile: shapePair(shape, 'mouthSmile'),
+    cheekSquint: shapePair(shape, 'cheekSquint'),
+    blink: shapePair(shape, 'eyeBlink'),
   };
 }
 
 // ARKit 스타일 블렌드셰이프(0~1) 조합으로 7종 감정 점수(0~100) 산출
 function calculateEmotionFromBlendshapes(shape: Map<string, number>): EmotionScores {
-  const s = (name: string) => shape.get(name) ?? 0;
-  const pair = (base: string) => (s(`${base}Left`) + s(`${base}Right`)) / 2;
-  const clamp = (v: number) => Math.min(100, Math.max(0, v));
+  const smile = shapePair(shape, 'mouthSmile');
+  const cheekSquint = shapePair(shape, 'cheekSquint');
+  const frown = shapePair(shape, 'mouthFrown');
+  const browInnerUp = shapeGet(shape, 'browInnerUp');
+  const browDown = shapePair(shape, 'browDown');
+  const eyeSquint = shapePair(shape, 'eyeSquint');
+  const mouthPress = shapePair(shape, 'mouthPress');
+  const eyeWide = shapePair(shape, 'eyeWide');
+  const browOuterUp = shapePair(shape, 'browOuterUp');
+  const jawOpen = shapeGet(shape, 'jawOpen');
+  const noseSneer = shapePair(shape, 'noseSneer');
+  const upperLipRaise = shapePair(shape, 'mouthUpperUp');
+  const mouthStretch = shapePair(shape, 'mouthStretch');
 
-  const smile = pair('mouthSmile');
-  const cheekSquint = pair('cheekSquint');
-  const frown = pair('mouthFrown');
-  const browInnerUp = s('browInnerUp');
-  const browDown = pair('browDown');
-  const eyeSquint = pair('eyeSquint');
-  const mouthPress = pair('mouthPress');
-  const eyeWide = pair('eyeWide');
-  const browOuterUp = pair('browOuterUp');
-  const jawOpen = s('jawOpen');
-  const noseSneer = pair('noseSneer');
-  const upperLipRaise = pair('mouthUpperUp');
-  const mouthStretch = pair('mouthStretch');
-
-  const happy = clamp((smile * 1.2 + cheekSquint * 0.4) * 100);
-  const sad = clamp((frown * 0.9 + browInnerUp * 0.5) * 100);
-  const angry = clamp((browDown * 1.0 + eyeSquint * 0.4 + mouthPress * 0.5) * 100);
-  const surprised = clamp((eyeWide * 0.7 + browOuterUp * 0.6 + jawOpen * 0.5) * 100);
-  const disgusted = clamp((noseSneer * 1.2 + upperLipRaise * 0.6) * 100);
-  const fearful = clamp((eyeWide * 0.4 + browInnerUp * 0.4 + mouthStretch * 0.7) * 100);
+  const happy = clamp100((smile * 1.2 + cheekSquint * 0.4) * 100);
+  const sad = clamp100((frown * 0.9 + browInnerUp * 0.5) * 100);
+  const angry = clamp100((browDown * 1.0 + eyeSquint * 0.4 + mouthPress * 0.5) * 100);
+  const surprised = clamp100((eyeWide * 0.7 + browOuterUp * 0.6 + jawOpen * 0.5) * 100);
+  const disgusted = clamp100((noseSneer * 1.2 + upperLipRaise * 0.6) * 100);
+  const fearful = clamp100((eyeWide * 0.4 + browInnerUp * 0.4 + mouthStretch * 0.7) * 100);
 
   const scores: EmotionScores = {
     happy,
@@ -147,7 +151,7 @@ function calculateEmotionFromBlendshapes(shape: Map<string, number>): EmotionSco
     fearful,
   };
   const total = happy + sad + angry + surprised + disgusted + fearful;
-  scores.neutral = clamp(100 - total);
+  scores.neutral = clamp100(100 - total);
   return scores;
 }
 

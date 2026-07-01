@@ -118,6 +118,11 @@ class HeartRateService {
       return this.samples.map((s) => (meanG > 0 ? s.g / meanG - 1 : 0));
     }
 
+    // 윈도별 스크래치 버퍼 — 슬라이딩 윈도마다 재할당하지 않고 재사용(길이 l 고정,
+    // 매 반복에서 인덱스 0..l-1을 전부 덮어쓰므로 이전 값이 남지 않는다)
+    const s1 = new Array<number>(l);
+    const s2 = new Array<number>(l);
+    const h = new Array<number>(l);
     for (let m = 0; m + l <= n; m++) {
       // 채널별 윈도 평균
       let mr = 0;
@@ -135,8 +140,6 @@ class HeartRateService {
       if (mr <= 0 || mg <= 0 || mb <= 0) continue;
 
       // 시간 정규화 후 투영 → S1, S2
-      const s1 = new Array<number>(l);
-      const s2 = new Array<number>(l);
       for (let i = 0; i < l; i++) {
         const s = this.samples[m + i];
         const rn = s.r / mr;
@@ -153,7 +156,6 @@ class HeartRateService {
 
       // 평균 제거 후 overlap-add
       let hMean = 0;
-      const h = new Array<number>(l);
       for (let i = 0; i < l; i++) {
         h[i] = s1[i] + alpha * s2[i];
         hMean += h[i];
@@ -187,13 +189,21 @@ class HeartRateService {
   }
 }
 
-// 표준편차 (POS 결합 계수 계산용)
+// 표준편차 (POS 결합 계수 계산용) — 합·제곱합을 한 번의 순회로 모아
+// 임시 배열/클로저 없이 계산한다(윈도마다 두 번 호출되는 핫 경로).
 function std(arr: number[]): number {
   const n = arr.length;
   if (n === 0) return 0;
-  const mean = arr.reduce((a, v) => a + v, 0) / n;
-  const variance = arr.reduce((a, v) => a + (v - mean) * (v - mean), 0) / n;
-  return Math.sqrt(variance);
+  let sum = 0;
+  let sumSq = 0;
+  for (let i = 0; i < n; i++) {
+    const v = arr[i];
+    sum += v;
+    sumSq += v * v;
+  }
+  const mean = sum / n;
+  const variance = sumSq / n - mean * mean;
+  return Math.sqrt(variance > 0 ? variance : 0); // 부동소수 오차로 음수화 방지
 }
 
 export const heartRateService = new HeartRateService();
