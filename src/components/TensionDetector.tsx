@@ -112,11 +112,6 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
   const [questionResults, setQuestionResults] = useState<QuestionResult[] | null>(null);
   const [smileResult, setSmileResult] = useState<SmileResult | null>(null);
 
-  // 결과 숫자 카운트업 연출 (값이 정해지면 0에서 또르륵 차오름)
-  const countedPeak = useCountUp(tensionSummary?.peak ?? 0);
-  const countedAvg = useCountUp(tensionSummary?.average ?? 0);
-  const countedSmile = useCountUp(smileResult?.authenticity ?? 0);
-
   const setPhase = (p: Phase) => {
     phaseRef.current = p;
     phaseStartRef.current = performance.now();
@@ -455,15 +450,15 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
         {phase === 'completed' && tensionSummary && (
           <div className="card tension-result">
             <ResultBand band={tensionSummary.band} />
-            <GaugeView tension={countedPeak} confidence={tensionSummary.confidence} />
+            <GaugeViewCountUp target={tensionSummary.peak} confidence={tensionSummary.confidence} />
             <div className="result-rows">
               <div className="result-row">
                 <span>최고 긴장</span>
-                <b>{countedPeak}</b>
+                <b><CountUp target={tensionSummary.peak} /></b>
               </div>
               <div className="result-row">
                 <span>평균 긴장</span>
-                <b>{countedAvg}</b>
+                <b><CountUp target={tensionSummary.average} /></b>
               </div>
               <div className="result-row">
                 <span>가장 큰 신호</span>
@@ -499,7 +494,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
               <div className="result-rows">
                 <div className="result-row">
                   <span>진짜 웃음 점수</span>
-                  <b>{countedSmile} / 100</b>
+                  <b><CountUp target={smileResult.authenticity} suffix=" / 100" /></b>
                 </div>
               </div>
             )}
@@ -550,6 +545,24 @@ function GaugeView({ tension, confidence }: { tension: number; confidence: numbe
       )}
     </div>
   );
+}
+
+// 카운트업 숫자만 소유하는 leaf — rAF마다의 setState가 이 텍스트 노드에만 갇혀
+// 결과 카드 전체가 매 프레임 리렌더되지 않는다.
+function CountUp({ target, suffix }: { target: number; suffix?: string }) {
+  const value = useCountUp(target);
+  return (
+    <>
+      {value}
+      {suffix}
+    </>
+  );
+}
+
+// 결과 게이지도 자체적으로 카운트업 — 부모가 아니라 이 컴포넌트만 프레임마다 리렌더
+function GaugeViewCountUp({ target, confidence }: { target: number; confidence: number }) {
+  const tension = useCountUp(target);
+  return <GaugeView tension={tension} confidence={confidence} />;
 }
 
 export interface LiveGaugeHandle {

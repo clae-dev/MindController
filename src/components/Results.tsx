@@ -42,11 +42,16 @@ const LEVEL_INFO: Record<
   high: { text: '많이 힘들어요', emoji: '🌧️', color: 'var(--maroon)' },
 };
 
+// 카운트업 숫자만 소유하는 leaf — rAF마다의 setState가 이 텍스트 노드에만 갇혀
+// 결과 카드 전체가 매 프레임 리렌더되지 않는다.
+function CountUp({ target }: { target: number }) {
+  const value = useCountUp(target);
+  return <>{value}</>;
+}
+
 export default function Results({ result, onReset }: ResultsProps) {
   // 마운트 후 게이지가 0에서 결과값까지 차오르도록
   const [gaugeValue, setGaugeValue] = useState(0);
-  // 점수 숫자는 또르륵 카운트업
-  const countedIndex = useCountUp(result.stressIndex);
 
   useEffect(() => {
     const id = setTimeout(() => setGaugeValue(result.stressIndex), 80);
@@ -138,7 +143,7 @@ export default function Results({ result, onReset }: ResultsProps) {
             <div className="gauge-fill" style={{ width: `${gaugeValue}%` }} />
           </div>
           <div className="score-value">
-            <b style={{ color: level.color }}>{countedIndex}</b>
+            <b style={{ color: level.color }}><CountUp target={result.stressIndex} /></b>
             <span>/ 100</span>
           </div>
         </div>

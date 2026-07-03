@@ -3,8 +3,10 @@ import type { AnimationItem } from 'lottie-web';
 
 // lottie-web(약 50KB gzip)은 메인 번들에서 분리해, 애니메이션 이모지가 실제로
 // 마운트될 때만 동적 로드한다. 로드 전/실패 시엔 텍스트 이모지로 폴백된다.
+// canvas 렌더러(경량 빌드)를 쓴다 — SVG 렌더러는 플레이어마다 SVG DOM을 매 프레임
+// 변형해 대기/결과 화면에 여러 개가 동시에 돌면 무겁다. canvas는 DOM 변형이 없다.
 const loadLottie = () =>
-  import('lottie-web/build/player/lottie_light').then((m) => m.default);
+  import('lottie-web/build/player/lottie_light_canvas').then((m) => m.default);
 
 interface AnimatedEmojiProps {
   emoji: string;
@@ -74,7 +76,7 @@ export default function AnimatedEmoji({
         if (cancelled || !containerRef.current) return;
         animationRef.current = lottie.loadAnimation({
           container: containerRef.current,
-          renderer: 'svg',
+          renderer: 'canvas',
           loop: true,
           autoplay: !prefersReducedMotion() && !pausedRef.current,
           animationData: data,
