@@ -20,7 +20,7 @@ interface AnimatedEmojiProps {
 
 // 이모지 문자열 → Noto Animated Emoji URL 코드포인트 (fe0f 포함, '_' 연결)
 const toCodepoint = (emoji: string) =>
-  [...emoji].map((ch) => ch.codePointAt(0)!.toString(16)).join('_');
+  [...emoji].map((ch) => ch.codePointAt(0)!.toString(16)).join('_');   
 
 // 같은 이모지를 여러 곳에서 써도 JSON은 한 번만 다운로드
 const lottieDataCache = new Map<string, Promise<unknown>>();
