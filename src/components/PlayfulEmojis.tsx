@@ -71,10 +71,10 @@ function PlayfulEmojis({ paused = false }: PlayfulEmojisProps) {
             paused={paused}
             animated={item.animated ?? false}
           />
-        </span>
+        </span>   
       ))}
     </div>
   );
-}
+}   
 
 export default memo(PlayfulEmojis);
