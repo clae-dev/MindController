@@ -73,7 +73,7 @@ function PlayfulEmojis({ paused = false }: PlayfulEmojisProps) {
           />
         </span>   
       ))}
-    </div>
+    </div>     
   );
 }   
 
