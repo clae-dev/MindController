@@ -10,7 +10,7 @@ interface PlayfulItem {
   duration: string;
   hideOnMobile?: boolean;
   /** Lottie로 내부 애니메이션할지 (false면 정적 이모지, CSS 둥실 모션은 유지) */
-  animated?: boolean;
+  animated?: boolean;   
 }
 
 // 하늘 + 축제 + 놀이터에서 뛰노는 아이들 — 카드 영역(중앙)을 피해 배치
