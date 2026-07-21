@@ -7,6 +7,10 @@ export default function BrandFooter() {
           src="/logo-vincent.png"
           alt="성빈센트청소년회 로고"
           className="brand-logo"
+          width={224}
+          height={240}
+          loading="lazy"
+          decoding="async"
         />
         <span className="brand-cross" aria-hidden="true">
           ×
@@ -15,6 +19,10 @@ export default function BrandFooter() {
           src="/logo-butterfly.png"
           alt="청년챔프단 Butterfly 로고"
           className="brand-logo"
+          width={240}
+          height={240}
+          loading="lazy"
+          decoding="async"
         />
       </div>
       <p className="brand-caption">  
