@@ -13,7 +13,7 @@
   gap: 16px;
   width: 100%;
   text-align: left;
-  background: var(--bg);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 18px 20px;
@@ -33,7 +33,7 @@
 .mode-card:hover {
   transform: translateY(-2px);
   border-color: var(--sage);
-  box-shadow: 0 14px 30px -20px rgba(46, 43, 38, 0.45);
+  box-shadow: 0 14px 30px -20px rgba(0, 0, 0, 0.9);
 }
 
 .mode-card:hover::after {
@@ -92,6 +92,7 @@
 
 /* 실시간 긴장 게이지 */
 .tension-gauge {
+  position: relative;
   margin-bottom: 18px;
   transition: opacity 0.3s ease;
 }
@@ -122,9 +123,42 @@
   overflow: hidden;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(to right, var(--sage), var(--mustard) 55%, var(--maroon));
-  box-shadow: 0 0 14px -3px rgba(192, 143, 60, 0.55);
+  background: linear-gradient(
+    to right,
+    var(--sage),
+    var(--joy) 42%,
+    var(--anxiety) 72%,
+    var(--anger)
+  );
+  box-shadow: 0 0 14px -2px rgba(255, 199, 44, 0.65);
   transition: width 0.18s linear, box-shadow 0.3s ease;
+}
+
+/* 버럭 경광등 — 긴장도 66 이상일 때만 위쪽에서 붉게 번진다 */
+.tension-siren {
+  position: absolute;
+  top: -18px;
+  left: -18px;
+  right: -18px;
+  height: 92px;
+  pointer-events: none;
+  border-radius: 18px;
+  background: radial-gradient(
+    72% 100% at 50% 0%,
+    rgba(232, 80, 58, 0.45),
+    transparent 68%
+  );
+  animation: siren-flash 1.1s var(--ease-soft) infinite;
+}
+
+@keyframes siren-flash {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* 게이지 위로 빛이 계속 흐르며 살아있는 느낌 */
@@ -139,7 +173,7 @@
 
 /* 긴장 높을 때: 숫자가 콩닥대고 게이지가 붉게 달아오름 */
 .tension-gauge.is-high .tension-fill {
-  box-shadow: 0 0 20px -1px rgba(185, 84, 63, 0.7);
+  box-shadow: 0 0 20px -1px rgba(232, 80, 58, 0.85);
 }
 
 .tension-gauge.is-high .tension-readout b {
@@ -241,7 +275,7 @@
   border-radius: 14px;
   padding: 8px 20px;
   margin-bottom: 16px;
-  background: rgba(246, 243, 236, 0.5);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .result-row {
@@ -271,7 +305,7 @@
   display: inline-block;
   color: var(--ink-soft);
   font-size: 0.84em;
-  background: var(--bg);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 8px 16px;
@@ -280,8 +314,8 @@
 
 .confidence-badge.is-low {
   color: var(--maroon);
-  background: rgba(185, 84, 63, 0.06);
-  border-color: rgba(185, 84, 63, 0.18);
+  background: rgba(232, 80, 58, 0.12);
+  border-color: rgba(232, 80, 58, 0.32);
 }
 
 .disclaimer {
@@ -334,7 +368,13 @@
 .qbar-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(to right, var(--sage), var(--mustard) 55%, var(--maroon));
+  background: linear-gradient(
+    to right,
+    var(--sage),
+    var(--joy) 42%,
+    var(--anxiety) 72%,
+    var(--anger)
+  );
   transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -410,6 +450,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tension-fill::after,
+  .tension-siren,
   .tension-gauge.is-high .tension-readout b,
   .tension-menu .mode-card,
   .tension-menu .ghost-button,

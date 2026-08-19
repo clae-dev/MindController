@@ -30,15 +30,24 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
+  background: rgba(255, 199, 44, 0.14);
+  border: 1px solid rgba(255, 199, 44, 0.34);
+  backdrop-filter: blur(14px);
+  color: var(--joy);
   font-size: 0.84em;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   padding: 7px 16px;
   border-radius: 999px;
   margin-bottom: 18px;
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--joy);
+  box-shadow: 0 0 10px var(--joy);
 }
 
 .page-header h1 {
@@ -56,15 +65,16 @@
   line-height: 1.7;
 }
 
-/* 공통 카드 */
+/* 공통 카드 — 배경 위에 얹히는 유리 */
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 22px;
   padding: 40px 36px;
+  backdrop-filter: blur(18px) saturate(1.2);
   box-shadow:
-    0 1px 2px rgba(46, 43, 38, 0.04),
-    0 16px 40px -28px rgba(46, 43, 38, 0.25);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 24px 50px -26px rgba(0, 0, 0, 0.95);
   text-align: center;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -72,8 +82,8 @@
 .card:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 1px 2px rgba(46, 43, 38, 0.04),
-    0 22px 48px -28px rgba(46, 43, 38, 0.3);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 30px 56px -26px rgba(0, 0, 0, 0.95);
 }
 
 .hero-emoji {
@@ -82,22 +92,6 @@
   align-items: center;
   margin-bottom: 24px;
   position: relative;
-}
-
-.hero-accent {
-  position: absolute;
-  animation: drift 3.4s ease-in-out infinite;
-}
-
-.hero-accent-left {
-  left: calc(50% - 86px);
-  top: -4px;
-  animation-delay: 0.6s;
-}
-
-.hero-accent-right {
-  right: calc(50% - 84px);
-  bottom: -2px;
 }
 
 /* 안내 단계: 헤어라인 리스트 */
@@ -128,7 +122,7 @@
   justify-content: center;
 }
 
-/* 시작 버튼: 차콜 필 */
+/* 시작 버튼: 기쁨 노랑 필 + 외곽 글로우 */
 .start-button {
   position: relative;
   overflow: hidden;
@@ -137,16 +131,18 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  background: linear-gradient(135deg, var(--charcoal), #3b3930);
-  color: #f7f4ed;
+  background: linear-gradient(135deg, #ffde7a, var(--joy) 55%, #f0ae00);
+  color: #3a2a00;
   border: none;
   padding: 16px 40px;
   font-size: 1.05em;
-  font-weight: 600;
+  font-weight: 800;
   letter-spacing: 0.02em;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 10px 24px -15px rgba(46, 43, 38, 0.7);
+  box-shadow:
+    0 0 0 6px rgba(255, 199, 44, 0.12),
+    0 14px 30px -14px rgba(255, 199, 44, 0.8);
   transition: background 0.2s, transform 0.18s var(--ease-spring), box-shadow 0.25s ease;
 }
 
@@ -169,9 +165,11 @@
 }
 
 .start-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--charcoal-hover), #46433a);
+  background: linear-gradient(135deg, #ffe89c, #ffd044 55%, #f5b810);
   transform: translateY(-2px);
-  box-shadow: 0 18px 32px -16px rgba(46, 43, 38, 0.7);
+  box-shadow:
+    0 0 0 8px rgba(255, 199, 44, 0.14),
+    0 20px 38px -16px rgba(255, 199, 44, 0.85);
 }
 
 .start-button:hover:not(:disabled)::after {
@@ -214,7 +212,7 @@
 .mode-switch:hover {
   color: var(--ink);
   border-color: var(--sage);
-  background: rgba(93, 141, 118, 0.06);
+  background: rgba(95, 208, 196, 0.12);
 }
 
 /* 분석 중 */
@@ -239,7 +237,7 @@
   aspect-ratio: 4 / 3;
   height: auto;
   display: block;
-  background: #26241f;
+  background: #0a0918;
   object-fit: cover;
   border-radius: 14px;
 }
@@ -263,23 +261,6 @@
   margin-bottom: 22px;
 }
 
-.countdown {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  color: var(--ink-soft);
-  font-size: 0.98em;
-  margin-bottom: 10px;
-}
-
-.count-num {
-  font-family: var(--serif);
-  font-size: 2em;
-  font-weight: 600;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-
 .stop-button {
   background: transparent;
   color: var(--ink-soft);
@@ -293,20 +274,20 @@
 }
 
 .stop-button:hover {
-  color: var(--maroon);
-  border-color: rgba(185, 84, 63, 0.4);
-  background: rgba(185, 84, 63, 0.05);
+  color: #ff9a88;
+  border-color: rgba(232, 80, 58, 0.5);
+  background: rgba(232, 80, 58, 0.12);
 }
 
 /* 에러 */
 .error-message {
-  color: var(--maroon);
+  color: #ff9a88;
   font-size: 0.95em;
   line-height: 1.65;
   margin-bottom: 24px;
   padding: 14px 18px;
-  background: rgba(185, 84, 63, 0.06);
-  border: 1px solid rgba(185, 84, 63, 0.18);
+  background: rgba(232, 80, 58, 0.12);
+  border: 1px solid rgba(232, 80, 58, 0.32);
   border-radius: 12px;
 }
 
@@ -433,12 +414,207 @@
   .idle-state .steps li,
   .idle-state .start-button,
   .idle-state .mode-switch,
+  .idle-state .roster,
   .status-line {
     animation: none;
   }
 
   .count-num,
-  .analyzing-state .video-frame::after {
+  .count-orb-fill,
+  .analyzing-state .video-frame::after,
+  .lever.is-on .lever-face {
     animation: none;
+  }
+}
+
+/* ── 시작 화면: 본부를 지키는 감정들 ───────────────────── */
+
+.roster {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.roster-title {
+  font-size: 0.74em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  margin-bottom: 14px;
+}
+
+.roster-list {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.idle-state .roster {
+  animation: fade-up 0.5s var(--ease-out) 0.64s both;
+}
+
+/* ── 측정 화면: 차오르는 기억 구슬 카운트다운 ──────────── */
+
+.countdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.count-orb {
+  position: relative;
+  flex: none;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(
+    circle at 32% 28%,
+    rgba(255, 255, 255, 0.28),
+    rgba(255, 199, 44, 0.1) 62%,
+    rgba(255, 199, 44, 0.04)
+  );
+  border: 2px solid rgba(255, 199, 44, 0.45);
+  box-shadow: 0 0 26px -6px rgba(255, 199, 44, 0.8);
+}
+
+/* 남은 시간이 줄수록 아래에서부터 빛이 차오른다 */
+.count-orb-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--fill, 0%);
+  background: linear-gradient(180deg, rgba(255, 222, 122, 0.95), rgba(240, 174, 0, 0.92));
+  box-shadow: 0 0 24px rgba(255, 199, 44, 0.9);
+  transition: height 0.3s var(--ease-soft);
+}
+
+.count-num {
+  position: relative;
+  font-family: var(--serif);
+  font-size: 2em;
+  font-weight: 700;
+  color: #2a1b00;
+  font-variant-numeric: tabular-nums;
+}
+
+.count-text {
+  font-size: 1.02em;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.count-text em {
+  display: block;
+  font-style: normal;
+  font-size: 0.84em;
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-top: 3px;
+}
+
+/* ── 측정 화면: 감정 콘솔 ──────────────────────────────── */
+
+.emotion-console {
+  margin-bottom: 20px;
+  padding: 18px 16px 14px;
+  border-radius: 18px;
+  background: rgba(11, 8, 30, 0.5);
+  border: 1px solid var(--line-soft);
+}
+
+.console-title {
+  font-size: 0.72em;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.console-levers {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 4px;
+  height: 168px;
+}
+
+.lever {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 우세하지 않은 감정은 흑백으로 물러난다 */
+.lever-face {
+  filter: grayscale(0.9) brightness(0.72);
+  transition: filter 0.35s ease, transform 0.35s var(--ease-spring);
+}
+
+.lever.is-on .lever-face {
+  filter: none;
+  transform: scale(1.24);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1), 0 0 20px -3px var(--glow);
+  border-radius: 50%;
+}
+
+.lever-track {
+  position: relative;
+  flex: 1;
+  width: 11px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.lever-fill {
+  display: block;
+  width: 100%;
+  height: 0%;
+  border-radius: 9px;
+  background: var(--glow);
+  box-shadow: 0 0 12px -1px var(--glow);
+  transition: height 0.18s linear;
+}
+
+.lever-name {
+  font-size: 0.68em;
+  font-weight: 700;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.lever.is-on .lever-name {
+  color: var(--glow);
+}
+
+@media (max-width: 600px) {
+  .console-levers {
+    height: 132px;
+  }
+
+  .count-orb {
+    width: 62px;
+    height: 62px;
+  }
+
+  .count-num {
+    font-size: 1.6em;
   }
 }

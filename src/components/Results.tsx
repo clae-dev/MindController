@@ -4,34 +4,18 @@ import { EMOTION_NAMES } from '../services/emotionAnalysis';
 import { useCountUp } from '../hooks/useCountUp';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
-import PlayfulEmojis from './PlayfulEmojis';
+import MemoryOrbs from './MemoryOrbs';
+import EmotionCharacter, {
+  EMOTION_CHARACTER,
+  CHARACTER_NAME,
+  emotionGlow,
+} from './EmotionCharacter';
 import '../styles/Results.css';
 
 interface ResultsProps {
   result: AnalysisSummary;
   onReset: () => void;
 }
-
-const EMOTION_EMOJIS: Record<string, string> = {
-  happy: '😊',
-  sad: '😢',
-  angry: '😠',
-  surprised: '😲',
-  neutral: '😌',
-  disgusted: '🤢',
-  fearful: '😨',
-};
-
-// 감정 분포 바 색상 (차분한 톤)
-const EMOTION_COLORS: Record<string, string> = {
-  happy: 'var(--sage)',
-  sad: '#7b8aa6',
-  angry: 'var(--maroon)',
-  surprised: 'var(--mustard)',
-  neutral: 'var(--ink-faint)',
-  disgusted: '#8a9a5b',
-  fearful: '#9a86b5',
-};
 
 const LEVEL_INFO: Record<
   AnalysisSummary['stressLevel'],
@@ -59,7 +43,9 @@ export default function Results({ result, onReset }: ResultsProps) {
   }, [result.stressIndex]);
 
   const level = LEVEL_INFO[result.stressLevel];
-  const emoji = EMOTION_EMOJIS[result.primaryEmotion] || '😌';
+  // 오늘의 기억 구슬 = 가장 강한 감정의 캐릭터
+  const orbCharacter = EMOTION_CHARACTER[result.primaryEmotion] ?? 'ennui';
+  const orbGlow = emotionGlow(result.primaryEmotion);
 
   // 감정 분포: 상위 3개 (1% 미만 제외)
   const spectrum = (Object.entries(result.emotionScores) as [string, number][])
@@ -69,16 +55,16 @@ export default function Results({ result, onReset }: ResultsProps) {
     .slice(0, 3);
 
   return (
-    <div className="results-container sky-scene">
-      <PlayfulEmojis />
+    <div className="results-container hall-scene">
+      <MemoryOrbs />
       <div className="results-card">
         <header className="results-header">
-          <span className="badge">
-            <AnimatedEmoji emoji="🍃" size={16} label="나뭇잎" />
-            마음 리포트
+          <span className="badge" style={{ color: level.color }}>
+            <AnimatedEmoji emoji={level.emoji} size={16} />
+            {level.text}
           </span>
           <h1>
-            오늘의 마음 결과예요
+            오늘의 기억 구슬
             {result.stressLevel === 'low' && (
               <span className="header-party" aria-hidden="true">
                 <AnimatedEmoji emoji="🥳" size={26} />
@@ -88,10 +74,21 @@ export default function Results({ result, onReset }: ResultsProps) {
         </header>
 
         <div className="emotion-hero">
-          <div className="emotion-circle">
-            <AnimatedEmoji emoji={emoji} size={64} label={result.keyword} />
+          <div
+            className="emotion-circle"
+            style={{ ['--glow' as string]: orbGlow }}
+          >
+            <EmotionCharacter
+              emotion={orbCharacter}
+              size={136}
+              large
+              orb
+              label={result.keyword}
+            />
           </div>
-          <p className="emotion-name">{result.keyword}</p>
+          <p className="emotion-name">
+            {CHARACTER_NAME[orbCharacter]} 구슬
+          </p>
           <p className="emotion-caption">{result.emotionDetail}</p>
         </div>
 
@@ -113,7 +110,7 @@ export default function Results({ result, onReset }: ResultsProps) {
             {spectrum.map((e) => (
               <div className="spectrum-row" key={e.key}>
                 <span className="spectrum-label">
-                  <AnimatedEmoji emoji={EMOTION_EMOJIS[e.key] || '😌'} size={16} />
+                  <EmotionCharacter emotion={e.key} size={26} orb />
                   {EMOTION_NAMES[e.key] || e.key}
                 </span>
                 <div className="spectrum-track">
@@ -121,7 +118,8 @@ export default function Results({ result, onReset }: ResultsProps) {
                     className="spectrum-fill"
                     style={{
                       width: `${e.value}%`,
-                      background: EMOTION_COLORS[e.key] || 'var(--ink-faint)',
+                      background: emotionGlow(e.key),
+                      boxShadow: `0 0 12px -1px ${emotionGlow(e.key)}`,
                     }}
                   />
                 </div>
@@ -133,7 +131,7 @@ export default function Results({ result, onReset }: ResultsProps) {
 
         <div className="score-section">
           <div className="score-row">
-            <span className="score-title">스트레스 지수</span>
+            <span className="score-title">본부 상태</span>
             <span className="level-chip" style={{ color: level.color }}>
               <AnimatedEmoji emoji={level.emoji} size={18} />
               {level.text}
@@ -159,13 +157,13 @@ export default function Results({ result, onReset }: ResultsProps) {
           <span className="quote-mark" aria-hidden="true">
             “
           </span>
-          <p className="quote-label">오늘의 한마디</p>
+          <p className="quote-label">구슬 라벨</p>
           <blockquote>{result.quote.text}</blockquote>
           <figcaption>{result.quote.author}</figcaption>
         </figure>
 
         <button className="reset-button" onClick={onReset}>
-          한 번 더 해볼래요 <AnimatedEmoji emoji="💫" size={18} />
+          구슬 보관하고 다시 하기
         </button>
 
         <p className="analysis-info">

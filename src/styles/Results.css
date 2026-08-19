@@ -12,13 +12,14 @@
 .results-card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 22px;
   padding: 40px 36px;
   max-width: 500px;
   width: 100%;
+  backdrop-filter: blur(18px) saturate(1.2);
   box-shadow:
-    0 1px 2px rgba(46, 43, 38, 0.04),
-    0 16px 40px -28px rgba(46, 43, 38, 0.25);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 24px 50px -26px rgba(0, 0, 0, 0.95);
   animation: slideUp 0.5s ease-out;
   text-align: center;
   position: relative;
@@ -57,12 +58,11 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid currentcolor;
   font-size: 0.84em;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   padding: 7px 16px;
   border-radius: 999px;
   margin-bottom: 16px;
@@ -81,16 +81,18 @@
   margin-bottom: 30px;
 }
 
+/* 오늘의 기억 구슬 — 감정색으로 빛나는 캐릭터 구체 */
 .emotion-circle {
-  width: 104px;
-  height: 104px;
-  margin: 0 auto 16px;
+  width: 136px;
+  height: 136px;
+  margin: 0 auto 18px;
   border-radius: 50%;
-  background: var(--bg);
-  border: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow:
+    0 0 0 10px color-mix(in srgb, var(--glow) 10%, transparent),
+    0 0 64px -8px var(--glow);
   animation: pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -128,7 +130,7 @@
   padding: 16px 20px;
   border: 1px solid var(--line-soft);
   border-radius: 14px;
-  background: rgba(185, 84, 63, 0.05);
+  background: rgba(232, 80, 58, 0.12);
 }
 
 .heart-emoji {
@@ -163,7 +165,7 @@
   border-radius: 14px;
   padding: 18px 22px;
   margin-bottom: 18px;
-  background: rgba(246, 243, 236, 0.5);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .spectrum-title {
@@ -221,7 +223,7 @@
   border-radius: 14px;
   padding: 22px 22px 18px;
   margin-bottom: 18px;
-  background: rgba(246, 243, 236, 0.5);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .score-row {
@@ -261,10 +263,11 @@
   background: linear-gradient(
     to right,
     var(--sage),
-    var(--mustard) 55%,
-    var(--maroon)
+    var(--joy) 42%,
+    var(--anxiety) 72%,
+    var(--anger)
   );
-  box-shadow: 0 0 12px -2px rgba(192, 143, 60, 0.5);
+  box-shadow: 0 0 14px -1px rgba(255, 199, 44, 0.7);
   transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -331,18 +334,32 @@
 }
 
 /* 오늘의 한마디 (명언) */
+/* 구슬 라벨 — 구슬에 붙는 쪽지 느낌 */
 .quote-card {
   position: relative;
   background: linear-gradient(
     165deg,
-    rgba(255, 250, 240, 0.95),
-    rgba(240, 247, 238, 0.95)
+    rgba(255, 199, 44, 0.12),
+    rgba(255, 199, 44, 0.05)
   );
-  border: 1px solid var(--line-soft);
+  border: 1px solid rgba(255, 199, 44, 0.3);
   border-radius: 16px;
   padding: 26px 28px 22px;
   margin-bottom: 28px;
   overflow: hidden;
+}
+
+/* 라벨을 구슬에 붙인 테이프 */
+.quote-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 62px;
+  height: 8px;
+  border-radius: 0 0 6px 6px;
+  background: rgba(255, 199, 44, 0.45);
 }
 
 /* 배경 장식용 큰 따옴표 */
@@ -353,13 +370,13 @@
   font-family: var(--serif);
   font-size: 5em;
   line-height: 1;
-  color: var(--sage);
-  opacity: 0.18;
+  color: var(--joy);
+  opacity: 0.22;
   pointer-events: none;
 }
 
 .quote-label {
-  color: var(--sage);
+  color: var(--joy);
   font-size: 0.76em;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -407,16 +424,18 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  background: linear-gradient(135deg, var(--charcoal), #3b3930);
-  color: #f7f4ed;
+  background: linear-gradient(135deg, #ffde7a, var(--joy) 55%, #f0ae00);
+  color: #3a2a00;
   border: none;
   padding: 16px 30px;
   font-size: 1.02em;
-  font-weight: 600;
+  font-weight: 800;
   letter-spacing: 0.02em;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 10px 24px -15px rgba(46, 43, 38, 0.7);
+  box-shadow:
+    0 0 0 6px rgba(255, 199, 44, 0.12),
+    0 14px 30px -14px rgba(255, 199, 44, 0.8);
   transition: background 0.2s, transform 0.18s var(--ease-spring), box-shadow 0.25s ease;
   margin-bottom: 16px;
 }
@@ -434,9 +453,11 @@
 }
 
 .reset-button:hover {
-  background: linear-gradient(135deg, var(--charcoal-hover), #46433a);
+  background: linear-gradient(135deg, #ffe89c, #ffd044 55%, #f5b810);
   transform: translateY(-2px);
-  box-shadow: 0 18px 32px -16px rgba(46, 43, 38, 0.7);
+  box-shadow:
+    0 0 0 8px rgba(255, 199, 44, 0.14),
+    0 20px 38px -16px rgba(255, 199, 44, 0.85);
 }
 
 .reset-button:hover::after {

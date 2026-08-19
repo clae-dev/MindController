@@ -8,7 +8,8 @@ import { pickQuestions } from '../data/tensionQuestions';
 import { useCountUp } from '../hooks/useCountUp';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
-import PlayfulEmojis from './PlayfulEmojis';
+import MemoryOrbs from './MemoryOrbs';
+import EmotionCharacter from './EmotionCharacter';
 import '../styles/TensionDetector.css';
 
 interface TensionDetectorProps {
@@ -36,10 +37,11 @@ const Q_INTRO_SEC = 1.6;
 const Q_CAPTURE_SEC = 3.4;
 const QUESTION_COUNT = 4;
 
+// 구간마다 나오는 감정 캐릭터: 편안 → 평온(따분), 약간 → 불안, 뚜렷 → 버럭
 const BAND_INFO = {
-  calm: { text: '아주 편안해 보였어요', emoji: '😌', color: 'var(--sage)' },
-  mild: { text: '약간의 긴장이 보였어요', emoji: '🫧', color: 'var(--mustard)' },
-  tense: { text: '긴장이 뚜렷했어요', emoji: '🫨', color: 'var(--maroon)' },
+  calm: { text: '아주 편안해 보였어요', character: 'ennui', color: 'var(--sage)' },
+  mild: { text: '약간의 긴장이 보였어요', character: 'anxiety', color: 'var(--anxiety)' },
+  tense: { text: '긴장이 뚜렷했어요', character: 'anger', color: 'var(--maroon)' },
 } as const;
 
 const SIGNAL_LABELS: Record<keyof TensionBreakdown, string> = {
@@ -310,8 +312,8 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
     phase === 'smileCapture';
 
   return (
-    <div className="stress-analyzer sky-scene">
-      <PlayfulEmojis paused={measuring} />
+    <div className="stress-analyzer hall-scene">
+      <MemoryOrbs paused={measuring} />
       <div className="container">
         <header className="page-header">
           <span className="badge">
@@ -330,7 +332,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
           <div className="card tension-menu">
             <button className="mode-card" onClick={() => start('free')}>
               <span className="mode-emoji">
-                <AnimatedEmoji emoji="🫧" size={40} />
+                <EmotionCharacter emotion="ennui" size={44} orb />
               </span>
               <span className="mode-text">
                 <b>자유 측정</b>
@@ -339,7 +341,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
             </button>
             <button className="mode-card" onClick={() => start('question')}>
               <span className="mode-emoji">
-                <AnimatedEmoji emoji="❓" size={40} />
+                <EmotionCharacter emotion="embarrassment" size={44} orb />
               </span>
               <span className="mode-text">
                 <b>질문 챌린지</b>
@@ -348,7 +350,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
             </button>
             <button className="mode-card" onClick={() => start('smile')}>
               <span className="mode-emoji">
-                <AnimatedEmoji emoji="😄" size={40} />
+                <EmotionCharacter emotion="joy" size={44} orb />
               </span>
               <span className="mode-text">
                 <b>웃음 판별</b>
@@ -528,6 +530,8 @@ function GaugeView({ tension, confidence }: { tension: number; confidence: numbe
   const high = tension >= 66;
   return (
     <div className={`tension-gauge${low ? ' is-low' : ''}${high ? ' is-high' : ''}`}>
+      {/* 66 이상이면 버럭 경광등이 위쪽에서 번진다 */}
+      {high && <span className="tension-siren" aria-hidden="true" />}
       <div className="tension-scale">
         <span>편안</span>
         <span>긴장</span>
@@ -536,7 +540,7 @@ function GaugeView({ tension, confidence }: { tension: number; confidence: numbe
         <div className="tension-fill" style={{ width: `${tension}%` }} />
       </div>
       <div className="tension-readout">
-        <AnimatedEmoji emoji={info.emoji} size={24} />
+        <EmotionCharacter emotion={info.character} size={34} orb />
         <b style={{ color: info.color }}>{tension}</b>
         <span>/ 100</span>
       </div>
@@ -592,7 +596,13 @@ function ResultBand({ band }: { band: TensionSummary['band'] }) {
   const info = BAND_INFO[band];
   return (
     <div className="result-band">
-      <AnimatedEmoji emoji={info.emoji} size={64} label={info.text} />
+      <EmotionCharacter
+        emotion={info.character}
+        size={84}
+        large={info.character === 'anger'}
+        orb
+        label={info.text}
+      />
       <h2 className="result-title" style={{ color: info.color }}>
         {info.text}
       </h2>

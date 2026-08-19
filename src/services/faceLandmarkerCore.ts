@@ -55,10 +55,13 @@ const CONNECTIONS: ReadonlyArray<readonly [number, number]> = [
 // 478점 전체가 아니라 이 부분집합으로 그려 매 프레임 arc 비용을 ~8배 줄인다.
 const CONNECTION_VERTICES: readonly number[] = [...new Set(CONNECTIONS.flat())];
 
+// 메쉬 오버레이 색 — 마음 본부 톤에 맞춘 기쁨 노랑 (기존 형광 초록 대체)
+const MESH_COLOR = '#FFC72C';
+
 // 랜드마크 점·연결선 그리기 (정규화 좌표 → 픽셀 인라인 변환, 중간 배열 할당 없음)
 export function drawLandmarks(ctx: Ctx2D, landmarks: NormPt[], w: number, h: number): void {
   // 점 — 한 패스로 모아 한 번에 fill (연결선에 쓰이는 정점만)
-  ctx.fillStyle = '#00FF00';
+  ctx.fillStyle = MESH_COLOR;
   ctx.beginPath();
   for (const idx of CONNECTION_VERTICES) {
     const landmark = landmarks[idx];
@@ -71,7 +74,7 @@ export function drawLandmarks(ctx: Ctx2D, landmarks: NormPt[], w: number, h: num
   ctx.fill();
 
   // 선 — 한 패스로 모아 한 번에 stroke
-  ctx.strokeStyle = '#00FF00';
+  ctx.strokeStyle = MESH_COLOR;
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (const [a, b] of CONNECTIONS) {

@@ -6,7 +6,10 @@ import { populationCalibration } from '../services/populationCalibration';
 import { heartRateService } from '../services/heartRate';
 import AnimatedEmoji from './AnimatedEmoji';
 import BrandFooter from './BrandFooter';
-import PlayfulEmojis from './PlayfulEmojis';
+import MemoryOrbs from './MemoryOrbs';
+import EmotionCharacter, { CHARACTER_NAME } from './EmotionCharacter';
+import EmotionConsole from './EmotionConsole';
+import type { EmotionConsoleHandle } from './EmotionConsole';
 import '../styles/StressAnalyzer.css';
 
 // 결과·긴장 화면은 사용자 상호작용 후에야 필요하므로 분리 로드해 첫 진입 번들을 줄임
@@ -51,6 +54,7 @@ export default function StressAnalyzer() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const detectLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runningRef = useRef(false);
+  const consoleRef = useRef<EmotionConsoleHandle>(null);
   const [status, setStatus] = useState<AnalysisStatus>('idle');
   const [appMode, setAppMode] = useState<'mind' | 'tension'>('mind');
   const [modelReady, setModelReady] = useState(false);
@@ -231,6 +235,8 @@ export default function StressAnalyzer() {
               }, 250);
             }
             emotionScoresCollected.push(scores);
+            // 콘솔 레버는 DOM에 직접 반영 — 매 틱 리렌더를 만들지 않는다
+            consoleRef.current?.update(scores);
           }
         } catch (err) {
           console.error('Face detection error:', err);
@@ -296,49 +302,49 @@ export default function StressAnalyzer() {
   }
 
   return (
-    <div className="stress-analyzer sky-scene">
-      <PlayfulEmojis paused={status === 'detecting' || status === 'analyzing'} />
+    <div className="stress-analyzer hall-scene">
+      <MemoryOrbs paused={status === 'detecting' || status === 'analyzing'} />
       <div className="container">
         <header className="page-header">
           <span className="badge">
-            <AnimatedEmoji emoji="🌈" size={18} label="오늘의 날씨" />
-            오늘의 마음 날씨
+            <span className="badge-dot" aria-hidden="true" />
+            1부스 · AI 표정 인식
           </span>
           <h1>마음, 잠깐 들여다볼까요?</h1>
           <p className="subtitle">
             카메라 앞에서 {ANALYSIS_DURATION}초면 충분해요.
             <br />
-            표정으로 지금의 스트레스를 읽어드릴게요.
+            오늘 마음이 무슨 색인지 알려드릴게요.
           </p>
         </header>
 
         {status === 'idle' && (
           <div className="card idle-state">
             <div className="hero-emoji">
-              <span className="hero-accent hero-accent-left" aria-hidden="true">
-                <AnimatedEmoji emoji="🎈" size={26} />
-              </span>
-              <AnimatedEmoji emoji="😌" size={80} label="평온한 얼굴" />
-              <span className="hero-accent hero-accent-right" aria-hidden="true">
-                <AnimatedEmoji emoji="✨" size={24} />
-              </span>
+              <EmotionCharacter
+                emotion="joy"
+                size={112}
+                large
+                orb
+                label="기쁨이 맞이하고 있어요"
+              />
             </div>
             <ul className="steps">
               <li>
                 <span className="step-icon">
-                  <AnimatedEmoji emoji="📸" size={22} />
+                  <EmotionCharacter emotion="joy" size={30} orb />
                 </span>
                 카메라를 편안하게 바라봐 주세요
               </li>
               <li>
                 <span className="step-icon">
-                  <AnimatedEmoji emoji="⏳" size={22} />
+                  <EmotionCharacter emotion="sadness" size={30} orb />
                 </span>
                 얼굴이 보이면 {ANALYSIS_DURATION}초 동안 자동으로 분석해요
               </li>
               <li>
                 <span className="step-icon">
-                  <AnimatedEmoji emoji="🔒" size={22} />
+                  <EmotionCharacter emotion="fear" size={30} orb />
                 </span>
                 영상은 저장되지 않고, 기기 안에서만 처리돼요
               </li>
@@ -349,18 +355,29 @@ export default function StressAnalyzer() {
               onClick={startAnalysis}
               disabled={!modelReady}
             >
-              {modelReady ? (
-                <>
-                  마음 들여다보기 <AnimatedEmoji emoji="✨" size={20} />
-                </>
-              ) : (
-                '준비하고 있어요…'
-              )}
+              {modelReady ? '마음 본부 들어가기' : '준비하고 있어요…'}
             </button>
             <p className="hint">버튼을 누르면 카메라 사용 권한을 요청해요</p>
             <button className="mode-switch" onClick={() => setAppMode('tension')}>
-              <AnimatedEmoji emoji="🔍" size={18} /> 긴장 감지도 해볼래요
+              긴장 감지도 해볼래요 →
             </button>
+
+            <div className="roster">
+              <p className="roster-title">오늘 본부를 지키는 감정들</p>
+              <div className="roster-list">
+                {(
+                  ['joy', 'sadness', 'anger', 'disgust', 'fear', 'anxiety', 'ennui'] as const
+                ).map((key) => (
+                  <EmotionCharacter
+                    key={key}
+                    emotion={key}
+                    size={38}
+                    orb
+                    label={CHARACTER_NAME[key]}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -383,13 +400,25 @@ export default function StressAnalyzer() {
               </div>
             ) : (
               <>
+                {/* 카운트다운 = 빛으로 차오르는 기억 구슬 */}
                 <div className="countdown">
-                  <span className="count-num">{timeRemaining}</span>초 남았어요
+                  <span
+                    className="count-orb"
+                    style={{
+                      ['--fill' as string]: `${
+                        ((ANALYSIS_DURATION - timeRemaining) / ANALYSIS_DURATION) * 100
+                      }%`,
+                    }}
+                  >
+                    <span className="count-orb-fill" />
+                    <span className="count-num">{timeRemaining}</span>
+                  </span>
+                  <span className="count-text">
+                    표정을 읽고 있어요
+                    <em>구슬이 다 차면 결과가 나와요</em>
+                  </span>
                 </div>
-                <div className="status-line">
-                  표정과 심박을 함께 읽는 중이에요
-                  <AnimatedEmoji emoji="❤️" size={22} label="심박" />
-                </div>
+                <EmotionConsole ref={consoleRef} />
               </>
             )}
             <button className="stop-button" onClick={stopAnalysis}>
@@ -401,7 +430,7 @@ export default function StressAnalyzer() {
         {status === 'error' && (
           <div className="card error-state">
             <div className="hero-emoji">
-              <AnimatedEmoji emoji="🥲" size={72} label="머쓱한 얼굴" />
+              <EmotionCharacter emotion="sadness" size={92} orb label="머쓱한 얼굴" />
             </div>
             <p className="error-message">{error}</p>
             <button className="start-button" onClick={resetAnalysis}>

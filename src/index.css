@@ -1,18 +1,27 @@
 :root {
-  /* 아이보리 에디토리얼 팔레트 */
-  --bg: #f6f3ec;
-  --card: #fffefb;
-  --ink: #2e2b26;
-  --ink-soft: #7d776b;
-  --ink-faint: #a8a193;
-  --line: #e6dfd0;
-  --line-soft: #efe9dc;
+  /* 감정 팔레트 — 앱의 감정 7종을 그대로 색으로 */
+  --joy: #ffc72c; /* 행복 */
+  --sad: #4a90d9; /* 슬픔 */
+  --anger: #e8503a; /* 분노 */
+  --disgust: #7fbf4d; /* 불쾌 */
+  --fear: #a177d6; /* 놀람 */
+  --anxiety: #ff8a3d; /* 불안 */
+  --ennui: #6e6bb8; /* 평온 */
 
-  --charcoal: #2f2d28;
-  --charcoal-hover: #45423a;
-  --sage: #5d8d76;
-  --mustard: #c08f3c;
-  --maroon: #b9543f;
+  /* 마음 본부 — 기억 구슬 홀 */
+  --bg: #0d0b22;
+  --card: rgba(23, 17, 56, 0.62);
+  --card-solid: #171136;
+  --ink: #f4f1ff;
+  --ink-soft: #b4add8;
+  --ink-faint: #8078b0;
+  --line: rgba(255, 255, 255, 0.16);
+  --line-soft: rgba(255, 255, 255, 0.09);
+
+  /* 3단계 판정 색 — 임계값(33·66)은 그대로, 색만 감정 팔레트로 */
+  --sage: #5fd0c4; /* 낮음 = 평온 */
+  --mustard: var(--joy); /* 보통 */
+  --maroon: var(--anger); /* 높음 */
 
   --serif: 'Noto Serif KR', 'Pretendard Variable', Pretendard, serif;
 
@@ -21,7 +30,7 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
 
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 /* 공통 진입 모션 — 아래에서 부드럽게 떠오르기 */
@@ -82,6 +91,7 @@ body {
   font-family:
     'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
     'Segoe UI', 'Malgun Gothic', sans-serif;
+  background: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -103,170 +113,165 @@ button {
   width: 100%;
 }
 
-/* 하늘 + 풀밭 장면 (양쪽 화면 공통 배경) */
-.sky-scene {
-  background:
-    radial-gradient(
-      120% 85% at 82% -12%,
-      rgba(255, 241, 204, 0.7),
-      rgba(255, 241, 204, 0) 46%
+/* 기억 구슬 홀 (양쪽 화면 공통 배경) — 일러스트 한 장 + 어둡게 깔아주는 스크림 */
+.hall-scene {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(9, 7, 26, 0.58) 0%,
+      rgba(9, 7, 26, 0.78) 46%,
+      rgba(7, 5, 22, 0.93) 100%
     ),
-    linear-gradient(180deg, #b9ddf3 0%, #d9edf9 48%, #edf7fc 72%);
+    url('/hall.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }
 
-/* 풀밭: 완만한 언덕 곡선 */
-.sky-scene::before {
+/* 세로 화면에서는 중앙 크롭본 — 가로로 늘어나 구슬이 뭉개지지 않도록 */
+@media (max-width: 820px) {
+  .hall-scene {
+    background-image:
+      linear-gradient(
+        180deg,
+        rgba(9, 7, 26, 0.58) 0%,
+        rgba(9, 7, 26, 0.8) 46%,
+        rgba(7, 5, 22, 0.94) 100%
+      ),
+      url('/hall-portrait.webp');
+  }
+}
+
+/* 위에서 내려오는 빛줄기 — 아주 느리게 숨쉰다 */
+.hall-scene::before {
   content: '';
   position: absolute;
-  left: -12%;
-  right: -12%;
-  bottom: -40px;
-  height: 30%;
-  background: linear-gradient(180deg, #aad489 0%, #7cb95c 100%);
-  border-radius: 55% 45% 0 0 / 110px 90px 0 0;
+  inset: 0;
   pointer-events: none;
+  background: radial-gradient(
+    56% 40% at 50% -6%,
+    rgba(255, 199, 44, 0.16),
+    transparent 68%
+  );
+  animation: hall-breathe 9s ease-in-out infinite alternate;
 }
 
-/* 구름: 흰 타원 + 그림자 복제로 두 덩이, 아주 천천히 흐름 */
-.sky-scene::after {
-  content: '';
-  position: absolute;
-  top: 7%;
-  left: 8%;
-  width: 150px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 999px;
-  box-shadow:
-    36px -18px 0 6px rgba(255, 255, 255, 0.8),
-    72px 6px 0 2px rgba(255, 255, 255, 0.75),
-    62vw 50px 0 -4px rgba(255, 255, 255, 0.75),
-    66vw 36px 0 6px rgba(255, 255, 255, 0.65);
-  animation: clouds-drift 36s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-
-@keyframes clouds-drift {
+@keyframes hall-breathe {
   from {
-    transform: translateX(0);
+    opacity: 0.55;
   }
   to {
-    transform: translateX(7vw);
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sky-scene::after {
+  .hall-scene::before {
     animation: none;
   }
 }
 
-/* 떠다니는 놀이 이모지 장식 레이어 (양쪽 화면 공통) */
-.playful-layer {
+/* ── 감정 캐릭터 구슬 ──────────────────────────────────── */
+
+.emotion-character {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.emotion-character img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: block;
+}
+
+/* 구슬로 쓸 때: 유리 반사 + 감정색 글로우 */
+.emotion-character.is-orb {
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.07),
+    0 0 30px -6px var(--glow, rgba(255, 255, 255, 0.4));
+}
+
+.emotion-character.is-orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.5), transparent 42%),
+    radial-gradient(circle at 72% 82%, var(--glow, transparent), transparent 56%);
+  opacity: 0.6;
+}
+
+/* 떠다니는 감정 캐릭터 구슬 레이어 (양쪽 화면 공통) */
+.memory-orbs {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
 }
 
-/* 축제 가랜드: 상단에 늘어진 삼각 깃발 줄 */
-.bunting {
+.memory-orb {
   position: absolute;
-  top: 0;
-  left: -2%;
-  right: -2%;
-  display: flex;
-  justify-content: space-between;
-  border-top: 3px solid rgba(255, 255, 255, 0.85);
-  transform-origin: top center;
-  animation: bunting-sway 6s ease-in-out infinite alternate;
-}
-
-.pennant {
-  width: 0;
-  height: 0;
-  border-left: 13px solid transparent;
-  border-right: 13px solid transparent;
-  border-top-width: 22px;
-  border-top-style: solid;
-  filter: drop-shadow(0 2px 2px rgba(46, 43, 38, 0.12));
-}
-
-/* 깃발이 줄에서 살짝씩 다른 각도로 매달린 느낌 */
-.pennant:nth-child(odd) {
-  transform: rotate(3deg);
-}
-
-.pennant:nth-child(even) {
-  transform: rotate(-3deg);
-}
-
-.pennant-0 {
-  border-top-color: #f0907a; /* 코랄 */
-}
-
-.pennant-1 {
-  border-top-color: #f2c14e; /* 머스터드 */
-}
-
-.pennant-2 {
-  border-top-color: #8fc9a8; /* 세이지 */
-}
-
-.pennant-3 {
-  border-top-color: #8ec5e6; /* 하늘 */
-}
-
-@keyframes bunting-sway {
-  from {
-    transform: rotate(-0.6deg);
-  }
-  to {
-    transform: rotate(0.6deg);
-  }
-}
-
-@media (max-width: 600px) {
-  .pennant:nth-child(n + 9) {
-    display: none; /* 좁은 화면은 깃발 8개만 */
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bunting {
-    animation: none;
-  }
-}
-
-.playful-emoji {
-  position: absolute;
-  opacity: 0.8;
+  display: block;
+  border-radius: 50%;
   animation: drift 4s ease-in-out infinite;
-  filter: drop-shadow(0 4px 10px rgba(46, 43, 38, 0.12));
+  /* 색은 인라인 --glow로 주입 — 감정마다 다른 빛 */
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.06),
+    0 0 26px -4px var(--glow, rgba(255, 255, 255, 0.4));
+}
+
+.memory-orb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+/* 구슬 표면의 유리 반사 */
+.memory-orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 30% 24%,
+      rgba(255, 255, 255, 0.5),
+      transparent 40%
+    ),
+    radial-gradient(circle at 72% 82%, var(--glow, transparent), transparent 55%);
+  opacity: 0.65;
 }
 
 @keyframes drift {
   0%,
   100% {
-    transform: translateY(0) rotate(-5deg);
+    transform: translateY(0) rotate(-4deg);
   }
   50% {
-    transform: translateY(-12px) rotate(5deg);
+    transform: translateY(-12px) rotate(4deg);
   }
 }
 
 @media (max-width: 600px) {
-  .playful-sm-hide {
+  .memory-orb-sm-hide {
     display: none;
   }
 
-  .playful-emoji {
-    opacity: 0.65;
+  .memory-orb {
+    opacity: 0.72;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .playful-emoji {
+  .memory-orb {
     animation: none;
   }
 }
@@ -291,8 +296,10 @@ button {
   border-radius: 50%;
   object-fit: cover;
   background: #fff;
-  border: 1px solid var(--line);
-  box-shadow: 0 2px 8px rgba(46, 43, 38, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 0 0 5px rgba(255, 255, 255, 0.06),
+    0 6px 18px -6px rgba(0, 0, 0, 0.8);
   transition: transform 0.25s ease;
 }
 
@@ -310,7 +317,9 @@ button {
   color: var(--ink-soft);
   font-size: 0.84em;
   letter-spacing: 0.01em;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(17, 13, 42, 0.66);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line-soft);
   padding: 7px 18px;
   border-radius: 999px;
 }
