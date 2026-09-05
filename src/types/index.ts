@@ -102,3 +102,6 @@ export interface SmileResult {
   baseEye?: number; // 측정된 중립 baseline 눈가 engagement (있으면)
   lowConfidence?: boolean; // 모션으로 대부분 프레임이 버려졌을 때
 }
+
+// MediaPipe 추론 위임: auto = GPU 시도 후 실패 시 CPU 폴백, CPU = 처음부터 CPU만
+export type Delegate = 'auto' | 'CPU';
