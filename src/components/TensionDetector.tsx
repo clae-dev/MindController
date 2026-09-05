@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { FaceFrame, TensionSummary, QuestionResult, SmileResult, TensionBreakdown } from '../types/index';
 import { faceDetectionService } from '../services/faceDetection';
+import { perfProfile } from '../utils/tvMode';
 import { heartRateService } from '../services/heartRate';
 import { tensionAnalysisService } from '../services/tensionAnalysis';
 import { computeSmileAuthenticity, meanEyeEngage } from '../services/smileAnalysis';
@@ -29,7 +30,7 @@ type Phase =
   | 'completed'
   | 'error';
 
-const DETECTION_INTERVAL = 100; // ms
+const DETECTION_INTERVAL = perfProfile.detectionIntervalMs; // ms — 프로파일(TV 모드)에 따름
 const BASELINE_SEC = 4;
 const SMILE_BASELINE_SEC = 1.5; // 웃기 직전 무표정 기준선
 const SMILE_SEC = 4;
@@ -261,7 +262,10 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
       // 표시는 CSS로 확대하고, 캡처는 추론·캔버스 비용을 줄이려 낮춤
       // (얼굴 랜드마크는 내부적으로 더 낮은 해상도로 처리돼 정확도 영향 거의 없음)
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        video: {
+          width: { ideal: perfProfile.captureWidth },
+          height: { ideal: perfProfile.captureHeight },
+        },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -275,6 +279,7 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
       // 감지 루프 — start() 내부에 두어 렌더 단계와 분리 (performance.now 등 부수효과)
       const detectLoop = async () => {
         if (!runningRef.current) return;
+        const t0 = performance.now();
         try {
           const frame = await faceDetectionService.detectFaceFrame();
           if (frame) handleFrame(frame, performance.now());
@@ -282,7 +287,11 @@ export default function TensionDetector({ onBack }: TensionDetectorProps) {
           console.error('Tension detection error:', err);
         }
         if (runningRef.current) {
-          detectLoopRef.current = setTimeout(detectLoop, DETECTION_INTERVAL);
+          // detect 소요 시간을 빼서 실제 주기를 목표에 맞춘다 (await 후 예약이라 백로그 없음, rPPG 샘플 간격 균일화)
+          detectLoopRef.current = setTimeout(
+            detectLoop,
+            Math.max(16, DETECTION_INTERVAL - (performance.now() - t0))
+          );
         }
       };
 

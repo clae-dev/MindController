@@ -274,7 +274,7 @@ function sampleForehead(
 
 export interface BuildFrameDeps {
   result: LandmarkResult;
-  drawCtx: Ctx2D; // 랜드마크 오버레이 (이미 비디오 크기로 설정/clear됨)
+  drawCtx: Ctx2D | null; // 랜드마크 오버레이 (이미 비디오 크기로 설정/clear됨). null이면 그리지 않음(TV 모드)
   sampleCtx: Ctx2D; // 20x20 다운샘플 캔버스 컨텍스트 (willReadFrequently)
   source: CanvasImageSource; // ROI 샘플 소스 (비디오 또는 ImageBitmap)
   w: number; // 소스/캔버스 너비(px)
@@ -297,7 +297,7 @@ export function buildFrame(deps: BuildFrameDeps): BuildFrameResult {
     return { frame: null, sample: null, gaze: lastGaze };
   }
 
-  drawLandmarks(drawCtx, normalized, w, h);
+  if (drawCtx) drawLandmarks(drawCtx, normalized, w, h);
 
   // 코끝(랜드마크 1) 정규화 좌표 → 시선/머리 위치 + 직전 대비 이동량
   const nose = normalized[1] ?? normalized[4] ?? { x: 0.5, y: 0.5 };

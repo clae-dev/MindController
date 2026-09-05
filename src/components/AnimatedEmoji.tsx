@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AnimationItem } from 'lottie-web';
+import { perfProfile } from '../utils/tvMode';
 
 // lottie-web(약 50KB gzip)은 메인 번들에서 분리해, 애니메이션 이모지가 실제로
 // 마운트될 때만 동적 로드한다. 로드 전/실패 시엔 텍스트 이모지로 폴백된다.
@@ -43,6 +44,10 @@ const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// 정지 모드: TV 모드(저사양)이거나 시스템이 모션 축소를 원하면 첫 프레임만 그리고 재생하지 않는다.
+// 텍스트 이모지 폴백 대신 Lottie 첫 프레임을 쓰는 이유는 TV 브라우저에 컬러 이모지 폰트가 없을 수 있어서.
+const isStill = () => perfProfile.lottie === 'still' || prefersReducedMotion();
+
 /**
  * Google Noto Animated Emoji를 Lottie(벡터)로 렌더링.
  * webp(평균 수백 KB~2.7MB) 대신 lottie.json(평균 20~60KB)을 사용해
@@ -74,13 +79,16 @@ export default function AnimatedEmoji({
     Promise.all([loadLottie(), loadLottieData(url)])
       .then(([lottie, data]) => {
         if (cancelled || !containerRef.current) return;
-        animationRef.current = lottie.loadAnimation({
+        const anim = lottie.loadAnimation({
           container: containerRef.current,
           renderer: 'canvas',
           loop: true,
-          autoplay: !prefersReducedMotion() && !pausedRef.current,
+          autoplay: !isStill() && !pausedRef.current,
           animationData: data,
         });
+        // 정지 모드: 휴식 포즈(0프레임)를 한 번만 렌더 — 이후 rAF 루프 없음
+        if (isStill()) anim.goToAndStop(0, true);
+        animationRef.current = anim;
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -93,12 +101,12 @@ export default function AnimatedEmoji({
     };
   }, [emoji, failed, animated]);
 
-  // paused 토글에 반응 (reduced-motion이면 재생하지 않음)
+  // paused 토글에 반응 (정지 모드면 재생하지 않음)
   useEffect(() => {
     const anim = animationRef.current;
     if (!anim) return;
     if (paused) anim.pause();
-    else if (!prefersReducedMotion()) anim.play();
+    else if (!isStill()) anim.play();
   }, [paused]);
 
   // Lottie 실패했거나 정적 모드면 텍스트 이모지로 렌더 (Lottie 플레이어 미생성)

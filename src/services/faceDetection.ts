@@ -1,7 +1,15 @@
-import type { EmotionScores, FaceFrame } from '../types/index';
+import type { Delegate, EmotionScores, FaceFrame } from '../types/index';
 import type { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import type { ActiveDelegate, WorkerIn, WorkerOut } from './faceDetection.worker';
+// `?worker` import: 프로덕션 빌드에서 Vite가 **클래식 워커**(iife)로 생성한다.
+// MediaPipe는 워커에서 WASM 로더를 importScripts로 불러오는데, 모듈 워커에선 importScripts가
+// 금지돼 "ModuleFactory not set"으로 실패하고 메인 스레드로 폴백돼 왔다. 개발 서버(dev)는
+// 워커를 항상 모듈로 서빙하므로 dev에서만 폴백되고, 빌드 결과에선 워커 경로가 정상 동작한다.
+import FaceWorker from './faceDetection.worker?worker';
 import { heartRateService } from './heartRate';
-import { buildFrame, getPrimaryEmotion, type Point, type Rgb } from './faceLandmarkerCore';
+import { buildFrame, getPrimaryEmotion, type Point } from './faceLandmarkerCore';
+import { perfProfile } from '../utils/tvMode';
+import { perfStats, recordDetect, recordError } from '../utils/perfStats';
 
 /**
  * 얼굴 감지 진입점 — 가능하면 Web Worker + OffscreenCanvas에서 추론/드로잉/ROI 샘플링을
@@ -10,11 +18,16 @@ import { buildFrame, getPrimaryEmotion, type Point, type Rgb } from './faceLandm
  *
  * 심박 버퍼/추정(DFT)은 항상 메인 스레드(heartRateService)가 소유하며,
  * 워커 경로에서도 워커는 RGB 샘플만 반환하고 누적은 여기서 한다.
+ *
+ * 성능 프로파일(utils/tvMode.ts)에 따라 추론 위임(GPU/CPU)과 오버레이 드로잉 여부가 정해지고,
+ * detect() 소요 시간은 utils/perfStats.ts에 기록돼 PerfHud에서 볼 수 있다.
  */
 
 interface Backend {
-  load(): Promise<void>;
-  bind(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void>;
+  // 요청한 위임으로 초기화하고 실제 활성화된 위임을 반환
+  load(delegate: Delegate): Promise<ActiveDelegate>;
+  // canvas가 null이면 랜드마크 오버레이를 그리지 않는다
+  bind(video: HTMLVideoElement, canvas: HTMLCanvasElement | null): Promise<void>;
   detect(): Promise<FaceFrame | null>;
   unbind(): void;
 }
@@ -27,26 +40,18 @@ const workerSupported = (): boolean =>
   typeof HTMLCanvasElement.prototype.transferControlToOffscreen === 'function';
 
 // ─── 워커 백엔드 ────────────────────────────────────────────────────────────
-type WorkerOut =
-  | { type: 'loaded' }
-  | { type: 'load-error'; message: string }
-  | { type: 'detect-result'; id: number; frame: FaceFrame | null; sample: Rgb | null }
-  | { type: 'detect-error'; id: number; message: string };
-
 class WorkerBackend implements Backend {
   private worker: Worker;
   private video: HTMLVideoElement | null = null;
   private nextId = 1;
   private pending = new Map<number, { resolve: (f: FaceFrame | null) => void; reject: (e: unknown) => void }>();
-  private loadResolve: (() => void) | null = null;
+  private loadResolve: ((d: ActiveDelegate) => void) | null = null;
   private loadReject: ((e: unknown) => void) | null = null;
   // load() 호출 전에 워커가 죽은 경우(모듈 평가 에러 등)를 기억해 즉시 reject
   private earlyError: unknown = null;
 
   constructor() {
-    this.worker = new Worker(new URL('./faceDetection.worker.ts', import.meta.url), {
-      type: 'module',
-    });
+    this.worker = new FaceWorker();
     this.worker.onmessage = (e: MessageEvent<WorkerOut>) => this.onMessage(e.data);
     this.worker.onerror = (e) => {
       // 초기화 중이면 로드 실패로 전파, 그 외에는 진행 중 detect를 모두 거부
@@ -62,10 +67,14 @@ class WorkerBackend implements Backend {
     };
   }
 
+  private post(msg: WorkerIn, transfer: Transferable[] = []): void {
+    this.worker.postMessage(msg, transfer);
+  }
+
   private onMessage(msg: WorkerOut): void {
     switch (msg.type) {
       case 'loaded':
-        this.loadResolve?.();
+        this.loadResolve?.(msg.delegate);
         this.loadResolve = this.loadReject = null;
         break;
       case 'load-error':
@@ -94,37 +103,41 @@ class WorkerBackend implements Backend {
     }
   }
 
-  load(): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
+  load(delegate: Delegate): Promise<ActiveDelegate> {
+    return new Promise<ActiveDelegate>((resolve, reject) => {
       if (this.earlyError) {
         reject(this.earlyError);
         return;
       }
       this.loadResolve = resolve;
       this.loadReject = reject;
-      this.worker.postMessage({ type: 'load' });
+      this.post({ type: 'load', delegate });
     });
   }
 
-  async bind(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
+  async bind(video: HTMLVideoElement, canvas: HTMLCanvasElement | null): Promise<void> {
     this.video = video;
-    const offscreen = canvas.transferControlToOffscreen();
-    this.worker.postMessage({ type: 'bind', canvas: offscreen }, [offscreen]);
+    // 오버레이를 끈 경우 transferControlToOffscreen 자체를 하지 않는다 (요소당 1회만 가능)
+    const offscreen = canvas ? canvas.transferControlToOffscreen() : null;
+    this.post({ type: 'bind', canvas: offscreen }, offscreen ? [offscreen] : []);
   }
 
   detect(): Promise<FaceFrame | null> {
     const video = this.video;
-    if (!video || !video.videoWidth) {
+    // 첫 프레임이 디코딩되기 전(readyState < HAVE_CURRENT_DATA)엔 createImageBitmap이 throw하므로 건너뜀
+    if (!video || !video.videoWidth || video.readyState < 2) {
       return Promise.resolve(null);
     }
     const w = video.videoWidth;
     const h = video.videoHeight;
+    perfStats.captureW = w;
+    perfStats.captureH = h;
     return createImageBitmap(video).then(
       (bitmap) =>
         new Promise<FaceFrame | null>((resolve, reject) => {
           const id = this.nextId++;
           this.pending.set(id, { resolve, reject });
-          this.worker.postMessage({ type: 'detect', id, bitmap, w, h }, [bitmap]);
+          this.post({ type: 'detect', id, bitmap, w, h }, [bitmap]);
         })
     );
   }
@@ -133,7 +146,7 @@ class WorkerBackend implements Backend {
     this.video = null;
     for (const { reject } of this.pending.values()) reject(new Error('unbound'));
     this.pending.clear();
-    this.worker.postMessage({ type: 'unbind' });
+    this.post({ type: 'unbind' });
   }
 
   dispose(): void {
@@ -154,7 +167,7 @@ class MainBackend implements Backend {
   private createLandmarker(
     FaceLandmarkerCls: typeof FaceLandmarker,
     fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>,
-    delegate: 'GPU' | 'CPU'
+    delegate: ActiveDelegate
   ): Promise<FaceLandmarker> {
     return FaceLandmarkerCls.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: '/models/face_landmarker.task', delegate },
@@ -178,24 +191,31 @@ class MainBackend implements Backend {
     }
   }
 
-  async load(): Promise<void> {
+  async load(pref: Delegate): Promise<ActiveDelegate> {
     // 메인 스레드 폴백 경로에서만 MediaPipe를 동적 로드한다 — 워커가 지원되는
     // 일반 브라우저에선 이 무거운 래퍼가 메인 번들에 포함되지 않는다.
     const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
     const fileset = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
-    try {
-      this.landmarker = await this.createLandmarker(FaceLandmarker, fileset, 'GPU');
-    } catch (error) {
-      console.warn('GPU delegate failed, falling back to CPU:', error);
+    let active: ActiveDelegate = 'CPU';
+    if (pref === 'auto') {
+      try {
+        this.landmarker = await this.createLandmarker(FaceLandmarker, fileset, 'GPU');
+        active = 'GPU';
+      } catch (error) {
+        console.warn('GPU delegate failed, falling back to CPU:', error);
+      }
+    }
+    if (!this.landmarker) {
       this.landmarker = await this.createLandmarker(FaceLandmarker, fileset, 'CPU');
     }
     await this.warmup();
+    return active;
   }
 
-  async bind(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
+  async bind(video: HTMLVideoElement, canvas: HTMLCanvasElement | null): Promise<void> {
     this.video = video;
     this.canvas = canvas;
-    this.canvasCtx = canvas.getContext('2d');
+    this.canvasCtx = canvas ? canvas.getContext('2d') : null;
     this.lastGaze = null;
   }
 
@@ -213,17 +233,23 @@ class MainBackend implements Backend {
     const video = this.video;
     const canvas = this.canvas;
     const ctx = this.canvasCtx;
-    if (!video || !canvas || !ctx || !this.landmarker) {
+    if (!video || !this.landmarker) {
       throw new Error('Face detection not initialized');
     }
+    if (!video.videoWidth || video.readyState < 2) return Promise.resolve(null);
     const sctx = this.ensureSampleCtx();
     if (!sctx) throw new Error('Cannot get sample context');
 
     const w = video.videoWidth;
     const h = video.videoHeight;
-    if (canvas.width !== w) canvas.width = w;
-    if (canvas.height !== h) canvas.height = h;
-    ctx.clearRect(0, 0, w, h);
+    perfStats.captureW = w;
+    perfStats.captureH = h;
+    // 오버레이가 있을 때만 캔버스 크기 맞추고 clear
+    if (canvas && ctx) {
+      if (canvas.width !== w) canvas.width = w;
+      if (canvas.height !== h) canvas.height = h;
+      ctx.clearRect(0, 0, w, h);
+    }
 
     const result = this.landmarker.detectForVideo(video, performance.now());
     const out = buildFrame({
@@ -270,26 +296,32 @@ export class FaceDetectionService {
     if (workerSupported()) {
       const backend = new WorkerBackend();
       try {
-        await backend.load();
+        const delegate = await backend.load(perfProfile.delegate);
         this.backend = backend;
-        console.log('Face landmarker ready (worker)');
+        perfStats.backend = 'worker';
+        perfStats.delegate = delegate;
+        console.log(`Face landmarker ready (worker, ${delegate})`);
         return;
       } catch (error) {
         console.warn('Worker backend unavailable, falling back to main thread:', error);
+        recordError(error);
         backend.dispose();
         this.backend = null;
       }
     }
     const main = new MainBackend();
-    await main.load();
+    const delegate = await main.load(perfProfile.delegate);
     this.backend = main;
-    console.log('Face landmarker ready (main thread)');
+    perfStats.backend = 'main';
+    perfStats.delegate = delegate;
+    console.log(`Face landmarker ready (main thread, ${delegate})`);
   }
 
   async bind(videoElement: HTMLVideoElement, canvas?: HTMLCanvasElement): Promise<void> {
     await this.loadModel();
     if (!this.backend) throw new Error('Face detection backend not initialized');
-    const overlay = canvas ?? document.createElement('canvas');
+    // 프로파일에서 오버레이를 껐으면(TV 모드) 캔버스를 넘기지 않아 드로잉·전송 비용을 없앤다
+    const overlay = perfProfile.drawOverlay ? (canvas ?? null) : null;
     await this.backend.bind(videoElement, overlay);
   }
 
@@ -302,7 +334,15 @@ export class FaceDetectionService {
   // 얼굴이 감지되면 감정 + 긴장/웃음/시선 신호를 함께 반환 (긴장 감지용)
   async detectFaceFrame(): Promise<FaceFrame | null> {
     if (!this.backend) throw new Error('Face detection not initialized');
-    return this.backend.detect();
+    const t0 = performance.now();
+    try {
+      const frame = await this.backend.detect();
+      recordDetect(performance.now() - t0, t0, frame !== null);
+      return frame;
+    } catch (err) {
+      recordError(err);
+      throw err;
+    }
   }
 
   getPrimaryEmotion(scores: EmotionScores): string {

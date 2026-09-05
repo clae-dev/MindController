@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { AnalysisStatus, AnalysisSummary, EmotionScores } from '../types/index';
 import { faceDetectionService } from '../services/faceDetection';
+import { perfProfile } from '../utils/tvMode';
 import { emotionAnalysisService } from '../services/emotionAnalysis';
 import { populationCalibration } from '../services/populationCalibration';
 import { heartRateService } from '../services/heartRate';
@@ -17,7 +18,7 @@ const Results = lazy(() => import('./Results'));
 const TensionDetector = lazy(() => import('./TensionDetector'));
 
 const ANALYSIS_DURATION = 10; // 분석 시간 (초) — 심박 추정을 위해 10초
-const DETECTION_INTERVAL = 100; // 얼굴 감지 주기 (ms)
+const DETECTION_INTERVAL = perfProfile.detectionIntervalMs; // 얼굴 감지 목표 주기 (ms) — 프로파일(TV 모드)에 따름
 
 // 추정 심박수에 따른 상태 라벨
 const heartRateLabel = (bpm: number): string => {
@@ -101,7 +102,10 @@ export default function StressAnalyzer() {
       // 1. 웹캠 접근 (카메라만 사용) — 표시는 CSS로 확대하고, 캡처는 추론·캔버스 비용을
       //    줄이려 낮춤. 얼굴 랜드마크는 내부적으로 더 낮은 해상도로 처리돼 정확도 영향 거의 없음
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        video: {
+          width: { ideal: perfProfile.captureWidth },
+          height: { ideal: perfProfile.captureHeight },
+        },
       });
 
       if (videoRef.current) {
@@ -216,6 +220,7 @@ export default function StressAnalyzer() {
       // 얼굴 감지 루프: 랜드마크를 실시간으로 그리고, 얼굴이 인식되면 바로 분석 시작
       const detectLoop = async () => {
         if (!runningRef.current) return;
+        const t0 = performance.now();
 
         try {
           const scores = await faceDetectionService.detectFaceAndEmotion();
@@ -243,7 +248,11 @@ export default function StressAnalyzer() {
         }
 
         if (runningRef.current) {
-          detectLoopRef.current = setTimeout(detectLoop, DETECTION_INTERVAL);
+          // detect 소요 시간을 빼서 실제 주기를 목표에 맞춘다 (await 후 예약이라 백로그 없음, rPPG 샘플 간격 균일화)
+          detectLoopRef.current = setTimeout(
+            detectLoop,
+            Math.max(16, DETECTION_INTERVAL - (performance.now() - t0))
+          );
         }
       };
       detectLoop();
