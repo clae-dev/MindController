@@ -166,6 +166,7 @@ button {
   }
 }
 
+/* 아래 TV 모드 블록(html[data-tv])과 목록을 함께 유지 */
 @media (prefers-reduced-motion: reduce) {
   .hall-scene::before {
     animation: none;
@@ -270,6 +271,7 @@ button {
   }
 }
 
+/* 아래 TV 모드 블록(html[data-tv])과 목록을 함께 유지 */
 @media (prefers-reduced-motion: reduce) {
   .memory-orb {
     animation: none;
@@ -327,4 +329,37 @@ button {
 .brand-caption strong {
   color: var(--ink);
   font-weight: 600;
+}
+
+/* ── TV 모드 (스탠바이미 등 저사양 대화면) ─────────────────
+   html[data-tv]는 utils/tvMode.ts가 React 마운트 전에 붙인다.
+   블러·무한 애니메이션·hover 효과를 끄고 27인치용으로 글자를 키운다.
+   애니메이션 정지 목록은 위 reduced-motion 블록과 함께 유지한다. */
+
+html[data-tv] {
+  font-size: 18px;
+  /* 유리 카드 대신 거의 불투명한 카드 — backdrop-filter 없이도 배경이 은은히 비침 */
+  --card: rgba(23, 17, 54, 0.9);
+}
+
+/* 의사요소는 :is() 안에 넣으면 무시되므로 따로 쓴다 */
+html[data-tv] .hall-scene::before {
+  animation: none;
+}
+
+html[data-tv] .memory-orb {
+  animation: none;
+}
+
+html[data-tv] .brand-caption {
+  backdrop-filter: none;
+  background: rgba(17, 13, 42, 0.9);
+}
+
+html[data-tv] .brand-logo {
+  transition: none;
+}
+
+html[data-tv] .brand-logo:hover {
+  transform: none;
 }

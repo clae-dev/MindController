@@ -448,6 +448,7 @@
   animation: fade-up 0.45s var(--ease-out) both;
 }
 
+/* 아래 TV 모드 블록(html[data-tv])과 목록을 함께 유지 */
 @media (prefers-reduced-motion: reduce) {
   .tension-fill::after,
   .tension-siren,
@@ -465,4 +466,45 @@
   .mode-card:hover .mode-emoji {
     transform: none;
   }
+}
+
+/* ── TV 모드 (html[data-tv]) — 위 reduced-motion 목록과 함께 유지 ── */
+
+html[data-tv]
+  :is(
+    .tension-siren,
+    .tension-gauge.is-high .tension-readout b,
+    .tension-menu .mode-card,
+    .tension-menu .ghost-button,
+    .tension-menu .hint,
+    .tension-result > *,
+    .result-band > span,
+    .smile-hero > span,
+    .question-text
+  ) {
+  animation: none;
+}
+
+html[data-tv] .tension-fill::after {
+  animation: none;
+}
+
+html[data-tv] .mode-card,
+html[data-tv] .mode-emoji,
+html[data-tv] .mode-card::after {
+  transition: none;
+}
+
+html[data-tv] .mode-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+html[data-tv] .mode-card:hover::after,
+html[data-tv] .mode-card:hover .mode-emoji {
+  transform: none;
+}
+
+html[data-tv] :is(.mode-card, .ghost-button) {
+  min-height: 56px;
 }

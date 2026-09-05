@@ -526,9 +526,38 @@
   animation-delay: 0.62s;
 }
 
+/* 아래 TV 모드 블록(html[data-tv])과 목록을 함께 유지 */
 @media (prefers-reduced-motion: reduce) {
   .results-card > *,
   .gauge-fill::after {
     animation: none;
   }
+}
+
+/* ── TV 모드 (html[data-tv]) — 위 reduced-motion 목록과 함께 유지 ── */
+
+html[data-tv] .results-card {
+  backdrop-filter: none;
+  animation: none;
+  max-width: 600px;
+}
+
+html[data-tv] :is(.results-card > *, .emotion-circle) {
+  animation: none;
+}
+
+html[data-tv] .gauge-fill::after {
+  animation: none;
+}
+
+html[data-tv] .reset-button {
+  min-height: 56px;
+}
+
+html[data-tv] .reset-button:hover {
+  transform: none;
+}
+
+html[data-tv] .reset-button:hover::after {
+  animation: none;
 }
