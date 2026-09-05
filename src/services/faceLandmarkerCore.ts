@@ -34,6 +34,10 @@ export interface LandmarkResult {
 // 코끝 이동량(정규화)이 이 값을 넘으면 움직임이 커 rPPG 샘플을 건너뜀
 export const MOTION_GATE = 0.02;
 
+// 랜드마크 오버레이 캔버스 해상도 = 비디오 × 이 배율 (CSS로 비디오 크기까지 확대됨).
+// 매 틱 캔버스 텍스처 업로드·합성 비용이 픽셀 수에 비례하므로 절반 해상도로 1/4로 줄인다
+export const OVERLAY_SCALE = 0.5;
+
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 // 주요 얼굴 특징 연결 (Face Mesh) — 모듈 상수로 한 번만 생성
@@ -274,7 +278,9 @@ function sampleForehead(
 
 export interface BuildFrameDeps {
   result: LandmarkResult;
-  drawCtx: Ctx2D | null; // 랜드마크 오버레이 (이미 비디오 크기로 설정/clear됨). null이면 그리지 않음(TV 모드)
+  drawCtx: Ctx2D | null; // 랜드마크 오버레이 (이미 drawW×drawH로 설정/clear됨). null이면 그리지 않음(TV 모드)
+  drawW: number; // 오버레이 캔버스 너비(px) — 정규화 좌표를 여기에 맞춰 그림
+  drawH: number; // 오버레이 캔버스 높이(px)
   sampleCtx: Ctx2D; // 20x20 다운샘플 캔버스 컨텍스트 (willReadFrequently)
   source: CanvasImageSource; // ROI 샘플 소스 (비디오 또는 ImageBitmap)
   w: number; // 소스/캔버스 너비(px)
@@ -291,13 +297,13 @@ export interface BuildFrameResult {
 // FaceLandmarker 결과 1개 → FaceFrame + 심박 샘플 + 갱신된 gaze.
 // 드로잉/샘플링은 주입된 컨텍스트에서 수행되므로 메인/워커 양쪽에서 동작한다.
 export function buildFrame(deps: BuildFrameDeps): BuildFrameResult {
-  const { result, drawCtx, sampleCtx, source, w, h, lastGaze } = deps;
+  const { result, drawCtx, drawW, drawH, sampleCtx, source, w, h, lastGaze } = deps;
   const normalized = result.faceLandmarks?.[0];
   if (!normalized || normalized.length === 0) {
     return { frame: null, sample: null, gaze: lastGaze };
   }
 
-  if (drawCtx) drawLandmarks(drawCtx, normalized, w, h);
+  if (drawCtx) drawLandmarks(drawCtx, normalized, drawW, drawH);
 
   // 코끝(랜드마크 1) 정규화 좌표 → 시선/머리 위치 + 직전 대비 이동량
   const nose = normalized[1] ?? normalized[4] ?? { x: 0.5, y: 0.5 };

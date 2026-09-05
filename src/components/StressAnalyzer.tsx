@@ -14,8 +14,10 @@ import type { EmotionConsoleHandle } from './EmotionConsole';
 import '../styles/StressAnalyzer.css';
 
 // 결과·긴장 화면은 사용자 상호작용 후에야 필요하므로 분리 로드해 첫 진입 번들을 줄임
-const Results = lazy(() => import('./Results'));
-const TensionDetector = lazy(() => import('./TensionDetector'));
+const loadResults = () => import('./Results');
+const loadTensionDetector = () => import('./TensionDetector');
+const Results = lazy(loadResults);
+const TensionDetector = lazy(loadTensionDetector);
 
 const ANALYSIS_DURATION = 10; // 분석 시간 (초) — 심박 추정을 위해 10초
 const DETECTION_INTERVAL = perfProfile.detectionIntervalMs; // 얼굴 감지 목표 주기 (ms) — 프로파일(TV 모드)에 따름
@@ -70,6 +72,8 @@ export default function StressAnalyzer() {
       .loadModel()
       .then(() => {
         if (!cancelled) setModelReady(true);
+        // 모드 전환 시 빈 화면(Suspense fallback)이 뜨지 않도록 긴장 감지 청크를 미리 받아둔다
+        loadTensionDetector().catch(() => {});
       })
       .catch((err) => {
         console.error('Model preload error:', err);
@@ -98,6 +102,8 @@ export default function StressAnalyzer() {
       setStatus('detecting');
       setTimeRemaining(ANALYSIS_DURATION);
       heartRateService.reset();
+      // 10초 뒤 결과 화면이 즉시 뜨도록 결과 청크(JS+CSS)를 분석 중에 미리 받아둔다
+      loadResults().catch(() => {});
 
       // 1. 웹캠 접근 (카메라만 사용) — 표시는 CSS로 확대하고, 캡처는 추론·캔버스 비용을
       //    줄이려 낮춤. 얼굴 랜드마크는 내부적으로 더 낮은 해상도로 처리돼 정확도 영향 거의 없음

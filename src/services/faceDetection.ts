@@ -7,7 +7,7 @@ import type { ActiveDelegate, WorkerIn, WorkerOut } from './faceDetection.worker
 // 워커를 항상 모듈로 서빙하므로 dev에서만 폴백되고, 빌드 결과에선 워커 경로가 정상 동작한다.
 import FaceWorker from './faceDetection.worker?worker';
 import { heartRateService } from './heartRate';
-import { buildFrame, getPrimaryEmotion, type Point } from './faceLandmarkerCore';
+import { buildFrame, getPrimaryEmotion, OVERLAY_SCALE, type Point } from './faceLandmarkerCore';
 import { perfProfile } from '../utils/tvMode';
 import { perfStats, recordDetect, recordError } from '../utils/perfStats';
 
@@ -244,17 +244,21 @@ class MainBackend implements Backend {
     const h = video.videoHeight;
     perfStats.captureW = w;
     perfStats.captureH = h;
-    // 오버레이가 있을 때만 캔버스 크기 맞추고 clear
+    // 오버레이가 있을 때만 캔버스 크기 맞추고 clear (절반 해상도, CSS로 확대)
+    const ow = Math.round(w * OVERLAY_SCALE);
+    const oh = Math.round(h * OVERLAY_SCALE);
     if (canvas && ctx) {
-      if (canvas.width !== w) canvas.width = w;
-      if (canvas.height !== h) canvas.height = h;
-      ctx.clearRect(0, 0, w, h);
+      if (canvas.width !== ow) canvas.width = ow;
+      if (canvas.height !== oh) canvas.height = oh;
+      ctx.clearRect(0, 0, ow, oh);
     }
 
     const result = this.landmarker.detectForVideo(video, performance.now());
     const out = buildFrame({
       result,
       drawCtx: ctx,
+      drawW: ow,
+      drawH: oh,
       sampleCtx: sctx,
       source: video,
       w,

@@ -21,7 +21,7 @@ interface AnimatedEmojiProps {
 
 // 이모지 문자열 → Noto Animated Emoji URL 코드포인트 (fe0f 포함, '_' 연결)
 const toCodepoint = (emoji: string) =>
-  [...emoji].map((ch) => ch.codePointAt(0)!.toString(16)).join('_');   
+  [...emoji].map((ch) => ch.codePointAt(0)!.toString(16)).join('_');
 
 // 같은 이모지를 여러 곳에서 써도 JSON은 한 번만 다운로드
 const lottieDataCache = new Map<string, Promise<unknown>>();
@@ -48,6 +48,56 @@ const prefersReducedMotion = () =>
 // 텍스트 이모지 폴백 대신 Lottie 첫 프레임을 쓰는 이유는 TV 브라우저에 컬러 이모지 폰트가 없을 수 있어서.
 const isStill = () => perfProfile.lottie === 'still' || prefersReducedMotion();
 
+// 이 크기 이하(배지·칩 안의 작은 이모지)는 움직임이 눈에 띄지 않으므로 정지 프레임으로 그린다
+const STILL_MAX_SIZE = 18;
+
+// ── 공유 틱커 ──────────────────────────────────────────────
+// lottie-web 자체 루프(플레이어마다 매 rAF 60fps 렌더) 대신, 모든 플레이어를 하나의
+// rAF에서 최대 30fps로 진행시킨다. 결과 화면에 플레이어 여러 개가 동시에 돌 때
+// 캔버스 렌더 횟수를 절반으로 줄이고, 이모지 크기에서 30fps는 60fps와 구분되지 않는다.
+const TICK_FPS = 30;
+const TICK_MS = 1000 / TICK_FPS;
+
+interface Player {
+  anim: AnimationItem;
+  frame: number; // 현재 프레임 (소수)
+  fr: number; // 원본 프레임레이트
+  total: number; // 총 프레임 수
+}
+
+const players = new Set<Player>();
+let rafId = 0;
+let lastTick = 0;
+
+function tick(now: number): void {
+  if (players.size === 0) {
+    rafId = 0;
+    return;
+  }
+  rafId = requestAnimationFrame(tick);
+  const dt = now - lastTick;
+  if (dt < TICK_MS) return;
+  lastTick = now;
+  // 탭 비활성화 등으로 오래 멈췄다 돌아오면 한 프레임만 진행
+  const step = Math.min(dt, 100) / 1000;
+  for (const p of players) {
+    p.frame = (p.frame + p.fr * step) % p.total;
+    p.anim.goToAndStop(p.frame, true);
+  }
+}
+
+function addPlayer(p: Player): void {
+  players.add(p);
+  if (!rafId) {
+    lastTick = performance.now();
+    rafId = requestAnimationFrame(tick);
+  }
+}
+
+function removePlayer(p: Player): void {
+  players.delete(p);
+}
+
 /**
  * Google Noto Animated Emoji를 Lottie(벡터)로 렌더링.
  * webp(평균 수백 KB~2.7MB) 대신 lottie.json(평균 20~60KB)을 사용해
@@ -62,13 +112,15 @@ export default function AnimatedEmoji({
   animated = true,
 }: AnimatedEmojiProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
-  const animationRef = useRef<AnimationItem | null>(null);
+  const playerRef = useRef<Player | null>(null);
   // 비동기 로드 완료 시점에 최신 paused 값을 읽기 위한 ref (초기값은 마운트 시점 paused)
   const pausedRef = useRef(paused);
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
   const [failed, setFailed] = useState(false);
+
+  const still = isStill() || size <= STILL_MAX_SIZE;
 
   useEffect(() => {
     if (!animated || failed || !containerRef.current) return;
@@ -83,12 +135,19 @@ export default function AnimatedEmoji({
           container: containerRef.current,
           renderer: 'canvas',
           loop: true,
-          autoplay: !isStill() && !pausedRef.current,
+          autoplay: false, // 재생은 공유 틱커가 담당
           animationData: data,
         });
-        // 정지 모드: 휴식 포즈(0프레임)를 한 번만 렌더 — 이후 rAF 루프 없음
-        if (isStill()) anim.goToAndStop(0, true);
-        animationRef.current = anim;
+        // 휴식 포즈(0프레임)를 먼저 그려 정지 모드/일시정지에서도 빈 칸이 아니게
+        anim.goToAndStop(0, true);
+        const player: Player = {
+          anim,
+          frame: 0,
+          fr: anim.frameRate,
+          total: Math.max(1, anim.totalFrames),
+        };
+        playerRef.current = player;
+        if (!still && !pausedRef.current) addPlayer(player);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -96,18 +155,22 @@ export default function AnimatedEmoji({
 
     return () => {
       cancelled = true;
-      animationRef.current?.destroy();
-      animationRef.current = null;
+      const p = playerRef.current;
+      if (p) {
+        removePlayer(p);
+        p.anim.destroy();
+      }
+      playerRef.current = null;
     };
-  }, [emoji, failed, animated]);
+  }, [emoji, failed, animated, still]);
 
   // paused 토글에 반응 (정지 모드면 재생하지 않음)
   useEffect(() => {
-    const anim = animationRef.current;
-    if (!anim) return;
-    if (paused) anim.pause();
-    else if (!isStill()) anim.play();
-  }, [paused]);
+    const p = playerRef.current;
+    if (!p) return;
+    if (paused || still) removePlayer(p);
+    else addPlayer(p);
+  }, [paused, still]);
 
   // Lottie 실패했거나 정적 모드면 텍스트 이모지로 렌더 (Lottie 플레이어 미생성)
   if (failed || !animated) {

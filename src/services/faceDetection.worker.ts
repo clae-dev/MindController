@@ -13,7 +13,7 @@
 
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import type { Delegate, FaceFrame } from '../types/index';
-import { buildFrame, type Point, type Rgb } from './faceLandmarkerCore';
+import { buildFrame, OVERLAY_SCALE, type Point, type Rgb } from './faceLandmarkerCore';
 
 export type ActiveDelegate = 'GPU' | 'CPU';
 
@@ -149,17 +149,21 @@ self.onmessage = async (e: MessageEvent<WorkerIn>) => {
       const sctx = ensureSampleCtx();
       if (!sctx) throw new Error('cannot get sample context');
 
-      // 오버레이가 있을 때만: 크기 변경 시 버퍼 재할당 후 clear
+      // 오버레이가 있을 때만: 크기 변경 시 버퍼 재할당 후 clear (절반 해상도, CSS로 확대)
+      const ow = Math.round(w * OVERLAY_SCALE);
+      const oh = Math.round(h * OVERLAY_SCALE);
       if (overlay && overlayCtx) {
-        if (overlay.width !== w) overlay.width = w;
-        if (overlay.height !== h) overlay.height = h;
-        overlayCtx.clearRect(0, 0, w, h);
+        if (overlay.width !== ow) overlay.width = ow;
+        if (overlay.height !== oh) overlay.height = oh;
+        overlayCtx.clearRect(0, 0, ow, oh);
       }
 
       const result = landmarker.detectForVideo(bitmap, nextTs());
       const out = buildFrame({
         result,
         drawCtx: overlayCtx,
+        drawW: ow,
+        drawH: oh,
         sampleCtx: sctx,
         source: bitmap,
         w,

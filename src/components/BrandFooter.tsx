@@ -4,11 +4,11 @@ export default function BrandFooter() {
     <footer className="brand-footer">
       <div className="brand-logos">
         <img
-          src="/logo-vincent.png"
+          src="/logo-vincent.webp"
           alt="성빈센트청소년회 로고"
           className="brand-logo"
-          width={224}
-          height={240}
+          width={104}
+          height={111}
           loading="lazy"
           decoding="async"
         />
@@ -16,11 +16,11 @@ export default function BrandFooter() {
           ×
         </span>
         <img
-          src="/logo-butterfly.png"
+          src="/logo-butterfly.webp"
           alt="청년챔프단 Butterfly 로고"
           className="brand-logo"
-          width={240}
-          height={240}
+          width={104}
+          height={104}
           loading="lazy"
           decoding="async"
         />
